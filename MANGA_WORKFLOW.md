@@ -90,3 +90,13 @@
 - 实测更新后的 Worker 从临时盘读取 AnythingV5 fp16 + IP-Adapter，成功生成 1 张 512×512 PNG；日志显示单镜头耗时约 9 秒，输出 manifest 与 ZIP。
 - 再次从迁移后的 MimicMotion 权重目录启动 16 帧测试，模型加载成功并生成 MP4（448×256，15fps，16帧，约 1.07 秒，约 94.5KB）。这证明迁移没有破坏模型读取；该短片仍需视觉质量验收，不能据此宣称动作镜头合格。
 - 重要限制：`/kaggle/tmp` 是临时空间，会话结束后可能清空。当前 Notebook 没有可用 Kaggle API token（仅检查是否存在，不读取或暴露凭据），因此尚未自动创建持久 Kaggle Dataset。下次会话需要重新下载模型到临时盘，或在用户账号可用的 Kaggle Dataset 输入挂载后从 `/kaggle/input` 读取。没有清理或删除原模型内容；本次迁移为移动并保留符号链接。
+
+
+## 2026-11-24 Kaggle 两镜头批量 Worker 实机验收
+
+- 在当前免费 Kaggle Draft Session 中确认模型缓存与 MimicMotion 权重符号链接均有效，工作盘剩余约 15.71GB。
+- 使用 `MANGA_MODEL_CACHE=/kaggle/tmp/hf_cache` 启动正式 `batch_generate_from_jobs.py --max-shots 2`，不重新下载模型。
+- Worker 实际完成 2 个镜头，日志结果：`DONE 2 shots; seconds 8.4`。
+- 输出文件：`shot_0001.png`（374,465 bytes）、`shot_0002.png`（397,064 bytes）、`manifest.json`（1,847 bytes）。生成包 `manga_keyframes_two_shots.zip` 为 773,000 bytes。
+- Manifest 中两个镜头状态均为 `done`。这是两镜头批量生成流程的实机验证；图像视觉质量和人物一致性仍需独立验收，不应仅凭生成成功就判定合格。
+- 当前输出包保留在 Kaggle `/kaggle/working`，尚未完成下载回 Box 工作台，因此尚未替换或登记正式项目原画。
