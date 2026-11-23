@@ -24,3 +24,5 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 - 实测产物：`manga_keyframes_landscape/shot_0001.png`，768×432，574,067 bytes；worker 报告单镜头约 6.4 秒。
 - 这是单镜头显存/尺寸验证，不代表人物一致性或画面内容验收通过。生成前仍须查看 `nvidia-smi`，确认被选中的物理 GPU 有足够空闲显存；不要并发运行 MimicMotion 和图片生成。
 - Kaggle 临时会话及 `/kaggle/tmp` 缓存并非永久存储；每次会话结束前需导出并备份关键帧与 manifest。
+
+- 后续横屏构图复核：把提示词强化为远景/环境占主导，并将 IP-Adapter scale 降至 0.30 后，768×432 仍生成明显人物近景；因此远景构图验收未通过。参考图本身是近景，当前 IP-Adapter 对景别控制仍不可靠。已将 Kaggle jobs JSON 恢复为原始“中景”测试配置；该远景测试图仅作为失败样本留档，不进入正式镜头。
