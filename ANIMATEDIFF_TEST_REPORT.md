@@ -7,14 +7,14 @@
 - Kaggle Draft Session：双 Tesla T4；使用免费 GPU，不启动付费资源。
 - Diffusers 0.35.2、Transformers 4.57.1、Accelerate。
 - 底模：`Yntec/AnythingV5`（本地 fp16 Diffusers snapshot）。
-- 动态模块：`guoyww/animatediff-motion-adapter-v1-5-2`（fp16，约 1.82GB）。
+- 动态模块：`guoyww/animatediff-motion-adapter-v1-5-2`（fp16，已下载约 1.82GB）。
 - IP-Adapter：`h94/IP-Adapter` SD15 Light。
 - 角色参考图：`heroine_reference_seed20261123.png`。
 
 ## 实测结果
 1. AnimateDiff + AnythingV5 + IP-Adapter：Pipeline 初始化成功（约 10.9 秒）；16 帧、512×512、12 steps 推理完成（约 46.8 秒），导出 H.264 MP4（2 秒，155,255 bytes）。
 2. 逐帧检查后发现输出为紫灰色噪声/纹理，人物不可辨识，**不符合可用视频标准**。不能将“推理成功/MP4 存在”视为生成成功。
-3. 去除 IP-Adapter、保留 CPU offload，20 steps 仍输出噪声；改为 DDIM 参数（clip_sample=False、timestep_spacing=linspace、beta_schedule=linear、steps_offset=1），25 steps 仍未修复。
+3. 去除 IP-Adapter、保留 CPU offload，20 steps 仍输出噪声；改为正确 DDIM 参数（clip_sample=False、timestep_spacing=linspace、beta_schedule=linear、steps_offset=1），25 steps 仍未修复。
 4. 改为直接 `.to('cuda')`、256×256、8 帧、16 steps，推理约 6.7 秒，输出仍为抽象紫色纹理。
 5. 尝试旧版 `animatediff-motion-adapter-v1-5`，在 Diffusers 0.35.2 下出现配置 ValueError，未能加载。
 6. 尝试 `frankjoshua/toonyou_beta6`，下载到的仓库结构为单体 checkpoint，不含 Diffusers UNet 权重路径，不能直接用当前 `AnimateDiffPipeline.from_pretrained` 加载；已清理该试验缓存。
@@ -32,3 +32,13 @@
 
 ## 质量门槛
 只有当抽帧检查确认主体清晰、帧间存在合理动作、无大面积噪声/崩坏，并且 MP4 可解码时，才标记为“AI 动态视频测试通过”。
+
+## 2026-11-24：Stable Video Diffusion（SVD）首轮实测补记
+- Kaggle Draft Session 中已存在并成功导出的 `svd_heroine_test.mp4`；Box 下载副本 `/home/user/Downloads/svd_heroine_test.mp4`，大小 114,628 bytes。
+- ffprobe 实测：H.264、1024×576、7 fps、8 帧、时长 1.142857 秒。逐帧 MD5 均不同，说明并非完全重复帧。
+- 对输出帧联系表进行视觉检查：主角清晰可辨，未出现 AnimateDiff 那种整幅紫灰噪声；但人物基本保持原姿势，主要是头发/局部细节轻微变化，动作幅度不足，尚不能作为剧情动作镜头验收。
+- 因此 SVD 当前判定为“技术链路初步可用、动作质量未通过”，只算比 AnimateDiff 噪声结果有进步，不算正式图生视频能力完成。
+- SVD 官方 Diffusers 文档提供 image-to-video pipeline，并说明可通过 model CPU offload、UNet forward chunking、较小 decode_chunk_size 降低显存，文档称可降至 8GB 以下；但 `decode_chunk_size=1` 可能增加闪烁。参考：https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/svd
+- 官方模型卡注明模型用于 research purposes；商业用途需另行查看 Stability AI license；模型本身也可能只生成静止画面或缓慢镜头移动，人物面部可能异常。参考：https://huggingface.co/stabilityai/stable-video-diffusion-img2vid
+- 下一轮重点：提升 motion_bucket_id 与 noise_aug_strength 的小范围网格测试，逐帧检查人物面部/服饰漂移，并把 8 帧短片延长为可用镜头；每次只保留少量测试输出，避免占满 Kaggle 19.5GiB 输出盘。
+[exit status 0]
