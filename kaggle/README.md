@@ -15,4 +15,12 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 - 对画面做轻微 Ken Burns 推近，使用普通话 eSpeak NG 合成旁白，生成 SRT 字幕，最后输出 MP4。
 - 工作台的“生成动态分镜预览 MP4”按钮会后台启动任务并在完成后下载视频。
 - 这是动态分镜/animatic，不等于 AnimateDiff、SVD 等模型生成的真实人物动作视频。语音目前为离线合成测试音色。
-[exit status 0]
+
+## 已验证的免费双 T4 图片生成配置（2026-11-24）
+- Kaggle 双 T4 是两张独立显卡，不能把显存相加使用。
+- 实测某次会话 GPU 0 仅余约 4.1 GiB，而 GPU 1 余约 14.8 GiB；默认 `cuda:0` 的横屏生成发生 OOM。
+- 将空闲物理卡映射为进程内唯一可见卡后，768×432 单镜头生成通过：
+  `CUDA_VISIBLE_DEVICES=1 MANGA_WIDTH=768 MANGA_HEIGHT=432 MANGA_IP_ADAPTER_SCALE=0.45 MANGA_STEPS=18 python batch_generate_from_jobs.py --max-shots 1`
+- 实测产物：`manga_keyframes_landscape/shot_0001.png`，768×432，574,067 bytes；worker 报告单镜头约 6.4 秒。
+- 这是单镜头显存/尺寸验证，不代表人物一致性或画面内容验收通过。生成前仍须查看 `nvidia-smi`，确认被选中的物理 GPU 有足够空闲显存；不要并发运行 MimicMotion 和图片生成。
+- Kaggle 临时会话及 `/kaggle/tmp` 缓存并非永久存储；每次会话结束前需导出并备份关键帧与 manifest。
