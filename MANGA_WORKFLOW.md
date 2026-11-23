@@ -49,4 +49,15 @@
 - 角色提示词加入年龄字段；每镜固定 seed；输出记录 seed、分辨率、大小、耗时和状态。
 - 已通过 `py_compile`，并提交 GitHub commit `3693114590d1529c61f9151cdc44fed52bd781ee`。
 - 重要：这只是 worker 代码可靠性修订，尚未在 Kaggle 实机运行该脚本。当前 notebook 仍需完成 jobs JSON 输入和脚本执行；现有参考图仍在 Kaggle working 目录，可通过 `HEROINE_REFERENCE` 指定。
-[exit status 0]
+
+## 2026-11-24 批量 Worker 实机执行更正
+- 前面“尚未在 Kaggle 实机运行”的状态已过期：Worker 已在 Kaggle 免费双 T4 实际执行 2 个镜头，manifest 两条均为 done，512×512；两张图已下载并导入正式项目。
+- 两镜头动态分镜预览 14.8 秒、1280×720、H.264 + AAC，ffprobe 验证通过。
+- 该视频仍为静态 AI 关键帧 + Ken Burns 推近 + 旁白/字幕，并非 AI 人物动作视频。
+
+## 2026-11-24 AnimateDiff 首轮视频实验（未通过质量验收）
+- AnimateDiff + AnythingV5 + IP-Adapter 在 Kaggle 双 T4 初始化成功，16 帧 512×512、12 steps 推理约 46.8 秒，并导出 2 秒 MP4。
+- 逐帧检查发现输出为紫灰色噪声/纹理，人物不可辨识。去掉 IP-Adapter、调整 DDIM 参数、直接 .to(cuda) 后仍未修复。
+- 旧版 motion adapter 在 Diffusers 0.35.2 下配置不兼容；ToonYou checkpoint 不是当前 Diffusers pipeline 所需目录结构。
+- 本次实验判定失败，失败视频不导入正式成片。详细报告：ANIMATEDIFF_TEST_REPORT.md。
+- 下一步检查 motion adapter 与 Diffusers 版本兼容性，或测试 SVD image-to-video；SVD 需要核对 9.56GB 权重、T4 显存和 Stability AI 商业许可。
