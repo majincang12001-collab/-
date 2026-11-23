@@ -1,0 +1,25 @@
+# Secrets and private project data
+data/
+*.key
+.env
+.env.*
+*.token
+# Runtime and model artifacts
+__pycache__/
+*.py[cod]
+*.log
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.mp4
+*.wav
+*.png
+*.jpg
+*.jpeg
+*.webp
+# Local caches
+.cache/
+models/
+outputs/
