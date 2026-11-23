@@ -40,7 +40,7 @@ footer{text-align:center;color:#94a3b8;font-size:12px;padding:25px}
 <textarea id="storyboardText" style="min-height:190px" placeholder="中景｜月色下的古城街道｜林月停下脚步，警惕地环顾四周｜旁白：夜色渐深｜anime fantasy, ancient Chinese city at night, cinematic medium shot"></textarea>
 <label class="muted">人物设定（每行一个：姓名｜年龄｜外貌｜服装｜性格）</label>
 <textarea id="characterText" placeholder="林月｜19岁｜黑色长发、琥珀色眼睛｜蓝银色长袍｜冷静坚韧"></textarea>
-<div class="row"><button id="saveProduction">保存制作资料</button><span id="productionStatus" class="muted"></span></div></section>
+<div class="row"><button id="saveProduction">保存制作资料</button><button type="button" class="secondary" id="exportJobs">导出图片生成任务 JSON</button><span id="productionStatus" class="muted"></span></div></section>
 </main><footer>AI 漫剧工作台 · 测试阶段 · 访问需口令 · 不会自动产生任何付费调用</footer>
 <script>
 let projects=[];
@@ -69,6 +69,17 @@ document.querySelector('#splitStory')?.addEventListener('click',()=>{
  const shots=chunks.slice(0,1000).map((text,i)=>({shot_type:i===0?'远景':'中景',visual:text,action:'待补充：根据剧情补充人物动作与表情',dialogue:'待提取：补充对白或旁白',prompt:'待生成：补充人物外貌、场景、构图、光线与画风'}));
  document.querySelector('#storyboardText').value=shots.map(shotLine).join('\n');
  document.querySelector('#productionStatus').textContent='已生成 '+shots.length+' 条结构化分镜草稿；这是文本拆分，动作、对白和画面提示词仍需审核补全';
+});
+document.querySelector('#exportJobs')?.addEventListener('click',()=>{
+ const projectId=document.querySelector('#productionProject').value;
+ const project=projects.find(x=>x.id===projectId);
+ if(!project){alert('请先选择项目');return}
+ const characters=document.querySelector('#characterText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{const a=line.split(/[｜|]/);return {name:a[0]||'',age:a[1]||'',appearance:a[2]||'',costume:a[3]||'',personality:a[4]||''}});
+ const shots=document.querySelector('#storyboardText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,1000).map((line,i)=>{const f=shotFields(line);return {id:i+1,shot_type:f.shot_type,visual:f.visual,action:f.action,dialogue:f.dialogue,prompt:f.prompt}});
+ if(!shots.length){alert('请先生成或填写分镜');return}
+ const payload={schema_version:1,project_name:project.name,style:'anime cinematic manhua',characters,storyboard:shots,notes:'待生成任务清单；上传到 Kaggle worker 后运行批量出图脚本。'};
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='manga-generation-jobs.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+ document.querySelector('#productionStatus').textContent='已导出 '+shots.length+' 条图片生成任务，可上传到 Kaggle 免费 GPU worker';
 });
 document.querySelector('#saveProduction')?.addEventListener('click',async()=>{
  const id=document.querySelector('#productionProject').value;
