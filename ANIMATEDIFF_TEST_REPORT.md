@@ -41,4 +41,11 @@
 - SVD 官方 Diffusers 文档提供 image-to-video pipeline，并说明可通过 model CPU offload、UNet forward chunking、较小 decode_chunk_size 降低显存，文档称可降至 8GB 以下；但 `decode_chunk_size=1` 可能增加闪烁。参考：https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/svd
 - 官方模型卡注明模型用于 research purposes；商业用途需另行查看 Stability AI license；模型本身也可能只生成静止画面或缓慢镜头移动，人物面部可能异常。参考：https://huggingface.co/stabilityai/stable-video-diffusion-img2vid
 - 下一轮重点：提升 motion_bucket_id 与 noise_aug_strength 的小范围网格测试，逐帧检查人物面部/服饰漂移，并把 8 帧短片延长为可用镜头；每次只保留少量测试输出，避免占满 Kaggle 19.5GiB 输出盘。
+
+## 2026-11-24：SVD 动态参数第二轮（已生成，待回传验片）
+- 复用当前 Kaggle Session 中已加载的 `StableVideoDiffusionPipeline` 和 1024×576 主角输入图，没有重新下载模型。
+- 运行参数：8 帧、10 inference steps、`decode_chunk_size=2`、`motion_bucket_id=180`、`noise_aug_strength=0.1`、7fps、seed=20261124。
+- 控制台推理结束后，Kaggle `/kaggle/working` 输出列表出现 `svd_motion180_test.mp4`、`svd_heroine_motion2.mp4` 和 `svd2_frame_00.png` 至 `svd2_frame_07.png`。
+- 目前只确认文件已生成；尚未下载第二轮 MP4 到 Box，也未对逐帧动作/人物漂移做视觉验收，因此**不标记为质量通过**。下一步必须先回传并验片，再决定参数是否有效。
+- 当时 Kaggle `/kaggle/working` 可用空间约 6.33GiB，CUDA 可用，首张卡识别为 Tesla T4；本轮只使用 cuda:0。
 [exit status 0]
