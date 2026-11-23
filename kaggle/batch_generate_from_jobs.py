@@ -8,15 +8,6 @@ Run: MAX_SHOTS=1 python kaggle/batch_generate_from_jobs.py
 """
 from pathlib import Path
 import argparse, glob, json, os, shutil, time, gc
-
-# Keep large model caches off Kaggle's 20GB persistent working volume.
-# /kaggle/tmp is high-capacity scratch space and is cleared with the session.
-MODEL_CACHE = Path(os.environ.get('MANGA_MODEL_CACHE', '/kaggle/tmp/hf_cache'))
-MODEL_CACHE.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault('HF_HOME', str(MODEL_CACHE))
-os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(MODEL_CACHE / 'hub'))
-os.environ.setdefault('TRANSFORMERS_CACHE', str(MODEL_CACHE / 'hub'))
-
 import torch
 from PIL import Image
 from diffusers import StableDiffusionPipeline
@@ -27,7 +18,7 @@ REFERENCE = Path(os.environ.get('HEROINE_REFERENCE', str(ROOT / 'character_refer
 OUT = ROOT / 'manga_keyframes'
 HF_HOME = Path(os.environ.get('MANGA_MODEL_CACHE', '/kaggle/tmp/hf_cache'))
 if not HF_HOME.exists() and (ROOT / 'hf_cache').exists():
-    HF_HOME = ROOT / 'hf_cache'  # compatibility with older notebook sessions
+    HF_HOME = ROOT / 'hf_cache'
 
 
 def atomic_json(path: Path, value):
@@ -87,7 +78,12 @@ def main():
     pipe.load_ip_adapter(str(ADAPTER), subfolder='models',
                          weight_name='ip-adapter_sd15_light.safetensors',
                          image_encoder_folder='image_encoder')
-    pipe.set_ip_adapter_scale(0.75)
+    adapter_scale = float(os.environ.get('MANGA_IP_ADAPTER_SCALE', '0.45'))
+    width = int(os.environ.get('MANGA_WIDTH', '768'))
+    height = int(os.environ.get('MANGA_HEIGHT', '432'))
+    steps = int(os.environ.get('MANGA_STEPS', '22'))
+    pipe.set_ip_adapter_scale(adapter_scale)
+    print('RENDER_CONFIG', width, height, steps, 'IP_ADAPTER_SCALE', adapter_scale, flush=True)
 
     manifest_path = OUT / 'manifest.json'
     manifest = {'project_name': data.get('project_name', ''), 'style': data.get('style', ''),
@@ -109,16 +105,24 @@ def main():
         if args.resume and sid in done_ids and target.is_file() and target.stat().st_size > 10000:
             print('SKIP', filename, 'already complete', flush=True)
             continue
+        framing = shot.get('shot_type', 'medium shot')
+        if any(k in str(framing) for k in ('远景', '全景', 'wide', 'establishing')):
+            camera = 'wide establishing shot, full body small in frame, environment dominant, character occupies only 15 percent of image, detailed ancient city architecture visible'
+        elif any(k in str(framing) for k in ('中景', 'medium')):
+            camera = 'medium shot, waist-up character, clear readable background environment'
+        else:
+            camera = 'close-up portrait, clean facial features'
         prompt = ', '.join(x for x in [
             data.get('style', 'Chinese anime donghua, cinematic manhua'),
-            'single character', character_text, shot.get('visual', ''), shot.get('action', ''),
-            shot.get('shot_type', 'medium shot'), shot.get('prompt', ''), 'detailed clean composition'
+            shot.get('visual', ''), shot.get('action', ''), camera,
+            'one heroine only', character_text, shot.get('prompt', ''),
+            'coherent costume design, same heroine identity, environment clearly visible, detailed clean composition'
         ] if x)
         seed = int(data.get('seed', 20261124)) + sid
         generator = torch.Generator(device='cuda').manual_seed(seed)
         t0 = time.time()
         image = pipe(prompt, ip_adapter_image=ref, negative_prompt=negative,
-                     num_inference_steps=18, guidance_scale=6.5, width=512, height=512,
+                     num_inference_steps=steps, guidance_scale=6.5, width=width, height=height,
                      generator=generator).images[0]
         image.save(target, format='PNG')
         if target.stat().st_size < 10000:
@@ -142,3 +146,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+[exit status 0]
