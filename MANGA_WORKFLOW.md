@@ -29,7 +29,7 @@
 ## D. 目前未完成
 - 真正的大模型自动编剧与语义分镜。
 - 工作台与 Kaggle 的自动队列/自动文件回传。
-- AnimateDiff / Stable Video Diffusion 等图生视频模型的实机验证。
+- 可用质量的图生视频镜头：SVD 已有 8 帧短片技术验证，但动作幅度小，尚未达到剧情镜头标准。
 - 多角色自然配音、背景音乐、音效、1080P 成片。
 
 全流程默认零预算；不要启用收费 GPU、付费 API 或任何自动充值。
@@ -50,14 +50,25 @@
 - 已通过 `py_compile`，并提交 GitHub commit `3693114590d1529c61f9151cdc44fed52bd781ee`。
 - 重要：这只是 worker 代码可靠性修订，尚未在 Kaggle 实机运行该脚本。当前 notebook 仍需完成 jobs JSON 输入和脚本执行；现有参考图仍在 Kaggle working 目录，可通过 `HEROINE_REFERENCE` 指定。
 
-## 2026-11-24 批量 Worker 实机执行更正
-- 前面“尚未在 Kaggle 实机运行”的状态已过期：Worker 已在 Kaggle 免费双 T4 实际执行 2 个镜头，manifest 两条均为 done，512×512；两张图已下载并导入正式项目。
-- 两镜头动态分镜预览 14.8 秒、1280×720、H.264 + AAC，ffprobe 验证通过。
-- 该视频仍为静态 AI 关键帧 + Ken Burns 推近 + 旁白/字幕，并非 AI 人物动作视频。
+## 2026-11-24 批量 Worker 首次成功（两条不同剧情镜头）
+- 修复 Kaggle Worker 源码尾部被污染的语法问题；重新从 GitHub 拉取干净版，Kaggle `py_compile` 通过。
+- 通过 Kaggle Notebook Python Console 执行脚本，避免失效的 cell toolbar 入口；复用 AnythingV5 fp16 与 IP-Adapter 缓存、角色参考图。
+- Worker 实际完成 2/2 镜头：`shot_0001.png` 374,358 bytes，3.34s；`shot_0002.png` 397,073 bytes，3.38s；两张均 512x512，manifest status=done。
+- 两镜头为不同剧情构图：古城城门抵达、灯笼街道内部行走；注意参考图条件只能辅助角色一致性，不能保证跨镜头完全一致。
+- Kaggle 输出压缩包 `manga_keyframes.zip` 772,902 bytes，已下载并解包导入项目正式 uploads。
+- 用两张本轮批量关键帧渲染 MP4：14.8 秒，1280x720 H.264 + AAC，4,961,148 bytes；ffprobe 验证通过。
+- 仍是静态关键帧 + Ken Burns 推近 + 普通话旁白/字幕，不是 AI 角色动作视频；目前输出分辨率不是 1080p。
 
-## 2026-11-24 AnimateDiff 首轮视频实验（未通过质量验收）
-- AnimateDiff + AnythingV5 + IP-Adapter 在 Kaggle 双 T4 初始化成功，16 帧 512×512、12 steps 推理约 46.8 秒，并导出 2 秒 MP4。
-- 逐帧检查发现输出为紫灰色噪声/纹理，人物不可辨识。去掉 IP-Adapter、调整 DDIM 参数、直接 .to(cuda) 后仍未修复。
-- 旧版 motion adapter 在 Diffusers 0.35.2 下配置不兼容；ToonYou checkpoint 不是当前 Diffusers pipeline 所需目录结构。
-- 本次实验判定失败，失败视频不导入正式成片。详细报告：ANIMATEDIFF_TEST_REPORT.md。
-- 下一步检查 motion adapter 与 Diffusers 版本兼容性，或测试 SVD image-to-video；SVD 需要核对 9.56GB 权重、T4 显存和 Stability AI 商业许可。
+## 2026-11-24：AnimateDiff 首轮视频实验（未通过质量验收）
+- 在免费 Kaggle 双 T4 中下载 AnimateDiff motion adapter v1-5-2，并组合 AnythingV5、IP-Adapter。
+- 16 帧 512x512 的 MP4 确实生成，但逐帧检查为紫灰色噪声纹理，人物不可辨识；去除 IP-Adapter、切换 DDIM 参数、直接放入 GPU 后仍未修复。
+- 旧版 v1-5 motion adapter 在当前 Diffusers 0.35.2 下配置不兼容；ToonYou checkpoint 不是当前 Diffusers pipeline 所需目录结构。
+- 该实验判定失败，不导入正式成片。详细记录见 `ANIMATEDIFF_TEST_REPORT.md`。
+- 下一步改查兼容版本/真正 image-to-video 模型；SVD 可用静态图作条件帧，但需注意 9.56GB 权重、T4 显存与商业许可限制。
+
+
+## 2026-11-24 SVD 首轮实测补记
+- Stable Video Diffusion 已实际导出 1024×576、7fps、8 帧、1.14 秒 H.264 短片，角色主体清晰，逐帧哈希不同。
+- 视觉检查显示角色基本静止，仅头发/细节轻微变化，动作幅度不足，暂不进入正式成片。详见 `ANIMATEDIFF_TEST_REPORT.md`。
+- 商业使用前必须核对 Stability AI license；模型卡说明当前模型 intended for research purposes。
+[exit status 0]
