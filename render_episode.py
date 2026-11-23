@@ -75,10 +75,12 @@ def main():
         if not speech:
             run(['ffmpeg','-y','-f','lavfi','-i','anullsrc=r=24000:cl=mono','-t','1.0','-c:a','pcm_s16le',str(wav)])
         ad=duration(wav); clipdur=max(3.5,ad+0.8); frames=max(1,int(clipdur*FPS))
+        padded=out/f'voice_padded_{idx:04d}.wav'
+        run(['ffmpeg','-y','-i',str(wav),'-af','apad','-t',f'{clipdur:.3f}','-c:a','pcm_s16le',str(padded)])
         clip=out/f'clip_{idx:04d}.mp4'
         vf=f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},zoompan=z='min(zoom+0.00035,1.045)':d={frames}:s={W}x{H}:fps={FPS},format=yuv420p"
         run(['ffmpeg','-y','-loop','1','-i',str(img),'-vf',vf,'-frames:v',str(frames),'-r',str(FPS),'-an','-c:v','libx264','-preset','ultrafast','-crf','24',str(clip)])
-        clips.append(clip); audios.append(wav)
+        clips.append(clip); audios.append(padded)
         if speech:
             start=cursor; end=cursor+clipdur
             txt=wrap(speech,26)
