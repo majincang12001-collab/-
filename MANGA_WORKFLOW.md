@@ -77,3 +77,16 @@
 - 输出 1024×576、7 fps、8 帧、1.14 秒 H.264 MP4；低 noise 版本人物近乎静止，提高到 noise_aug_strength=0.20、motion_bucket_id=220 后出现轻微头发/姿态变化，但还没有明显走路或转身动作。
 - 已将 8 帧动态测试视频和抽帧对比图登记到正式项目文件列表，标记为测试素材，尚未进入正式成片。
 - 详细记录见 ANIMATEDIFF_TEST_REPORT.md。SVD 使用 Stability AI Community License，商业用途需注册并遵守收入门槛及署名条款。
+
+
+## 2026-11-24 Kaggle 磁盘空间迁移与 Worker 复测
+
+- 实测 `/kaggle/working` 为独立 20GB 卷，迁移前仅剩约 3.02GB；`/kaggle/tmp` 位于另一临时文件系统，实测可用约 2.5TB（容量为会话环境报告值，不是永久配额承诺）。
+- 将 Hugging Face 模型缓存从 `/kaggle/working/hf_cache` 迁移到 `/kaggle/tmp/hf_cache`，并在原路径建立符号链接，保持旧模型路径兼容；AnythingV5 与 IP-Adapter 快照可通过旧路径访问。
+- 将 MimicMotion 权重目录从 `/kaggle/working/MimicMotion/models` 迁移到 `/kaggle/tmp/MimicMotion_models`，原路径建立符号链接，MimicMotion 相对权重路径保持可用。
+- 迁移后 `/kaggle/working` 可用空间实测提升到约 15.71GB；`/kaggle/tmp` 仍有约 2.5TB 系统报告可用空间。
+- 新增 `kaggle/prepare_kaggle_runtime.py`，用于新会话自动把现有模型缓存迁移到临时盘并设置 HF 缓存环境变量。
+- 更新 `kaggle/batch_generate_from_jobs.py`，默认将模型缓存放到 `/kaggle/tmp/hf_cache`，支持 `MANGA_MODEL_CACHE` 覆盖。
+- 实测更新后的 Worker 从临时盘读取 AnythingV5 fp16 + IP-Adapter，成功生成 1 张 512×512 PNG；日志显示单镜头耗时约 9 秒，输出 manifest 与 ZIP。
+- 再次从迁移后的 MimicMotion 权重目录启动 16 帧测试，模型加载成功并生成 MP4（448×256，15fps，16帧，约 1.07 秒，约 94.5KB）。这证明迁移没有破坏模型读取；该短片仍需视觉质量验收，不能据此宣称动作镜头合格。
+- 重要限制：`/kaggle/tmp` 是临时空间，会话结束后可能清空。当前 Notebook 没有可用 Kaggle API token（仅检查是否存在，不读取或暴露凭据），因此尚未自动创建持久 Kaggle Dataset。下次会话需要重新下载模型到临时盘，或在用户账号可用的 Kaggle Dataset 输入挂载后从 `/kaggle/input` 读取。没有清理或删除原模型内容；本次迁移为移动并保留符号链接。
