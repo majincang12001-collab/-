@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI漫剧工作台</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;color:#172033;background:#f4f6fa}
+*{box-sizing:border-box}body{margin:0}.top{background:#111827;color:white;padding:18px 20px;display:flex;align-items:center;justify-content:space-between}
+.brand{font-size:20px;font-weight:750}.tag{font-size:12px;color:#cbd5e1}.wrap{max-width:1050px;margin:24px auto;padding:0 16px}
+.hero{background:linear-gradient(120deg,#18233b,#344b70);color:white;border-radius:18px;padding:24px;margin-bottom:18px}
+.hero h1{margin:0 0 8px;font-size:25px}.hero p{margin:0;color:#dbe5f5;font-size:14px;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{background:white;border:1px solid #e6eaf0;border-radius:15px;padding:18px;box-shadow:0 3px 12px #17203308}
+.card h2{font-size:17px;margin:0 0 12px}.muted{color:#64748b;font-size:13px;line-height:1.6}
+button{border:0;border-radius:10px;background:#2563eb;color:white;padding:11px 15px;font-size:14px;font-weight:650;cursor:pointer}
+button.secondary{background:#eaf0ff;color:#1d4ed8}input,textarea{width:100%;padding:11px;border:1px solid #d7deea;border-radius:10px;font:inherit;margin:6px 0 10px}
+textarea{min-height:90px;resize:vertical}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.project{padding:12px;border:1px solid #e5eaf2;border-radius:11px;margin-top:9px}.project b{display:block}.pill{font-size:11px;padding:4px 8px;background:#eef2ff;color:#3449a3;border-radius:20px}
+.status{display:flex;gap:10px;align-items:center;margin-top:10px}.login{max-width:420px;margin:28px auto;background:white;border:1px solid #e5eaf2;border-radius:16px;padding:22px;box-shadow:0 8px 30px #17203312}.login h2{margin:0 0 8px;font-size:19px}.dot{width:8px;height:8px;border-radius:50%;background:#d69e24}
+footer{text-align:center;color:#94a3b8;font-size:12px;padding:25px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.hero{padding:19px}.hero h1{font-size:22px}.top{padding:15px}}
+</style></head>
+<body>
+<header class="top"><div><div class="brand">🎬 AI 漫剧工作台</div><div class="tag">手机 / 电脑通用 · 制作控制台</div></div><span class="pill">原型版</span></header>
+<main class="wrap"><section class="login" id="login"><h2>工作台登录</h2><p class="muted">请输入访问口令，验证后即可查看项目和上传文件。</p><input id="loginKey" type="password" placeholder="访问口令" autocomplete="current-password"><button id="loginBtn">登录工作台</button><p class="muted" id="loginError"></p></section>
+<section class="hero"><h1>把故事，变成漫剧</h1><p>从小说、剧本到人物设定、分镜、画面与成片，逐步整合到一个工作台。当前先搭建项目管理入口，生成引擎稍后接入。</p></section>
+<div class="grid">
+<section class="card"><h2>新建漫剧项目</h2><label class="muted">项目名称</label><input id="name" placeholder="例如：苍穹之上的旅人"><label class="muted">故事简介（可选）</label><textarea id="desc" placeholder="简单写下故事背景或粘贴故事梗概"></textarea><button id="create">创建项目</button></section>
+<section class="card"><h2>上传小说 / 剧本</h2><p class="muted">支持先选择 TXT、MD、PDF、DOCX 文件。文件会上传并保存到云端工作区；单个文件最大 40MB。</p><input id="file" type="file" accept=".txt,.md,.pdf,.doc,.docx" multiple><label class="muted">上传到哪个项目</label><select id="projectSelect" style="width:100%;padding:10px;border:1px solid #d7deea;border-radius:10px;margin:6px 0"><option value="">请先创建项目</option></select><button class="secondary" id="upload">上传所选文件</button><div id="files" class="muted" style="margin-top:8px">尚未选择文件</div></section>
+<section class="card"><h2>项目列表</h2><div id="projects" class="muted">还没有项目，先创建一个吧。</div></section>
+<section class="card"><h2>制作流程</h2><div class="project"><b>① 故事与剧本</b><span class="muted">小说拆解、章节改编、对白整理</span></div><div class="project"><b>② 人物与场景库</b><span class="muted">角色设定、参考图、场景资产</span></div><div class="project"><b>③ 自动分镜与画面</b><span class="muted">镜头拆分、图片生成、人物一致性</span></div><div class="project"><b>④ 视频与后期</b><span class="muted">首尾帧、配音、字幕、合成导出</span></div><div class="status"><span class="dot"></span><span class="muted">生成引擎尚未连接</span></div></section>
+</div>
+<section class="card" style="margin-top:14px"><h2>故事与人物资料</h2>
+<p class="muted">先保存原文和角色设定，后续接入自动剧本与分镜引擎。</p>
+<select id="productionProject" style="width:100%;padding:10px;border:1px solid #d7deea;border-radius:10px;margin:6px 0"><option value="">请选择项目</option></select>
+<label class="muted">故事原文 / 梗概</label><textarea id="storyText" style="min-height:130px" placeholder="粘贴故事梗概或章节内容"></textarea>
+<div class="row" style="margin-top:8px"><button type="button" class="secondary" id="splitStory">按段落拆分镜头（基础版）</button><span class="muted">每段先生成一个待审核镜头，不调用付费 AI</span></div>
+<label class="muted">分镜草稿（每行一个镜头，可手动修改）</label>
+<textarea id="storyboardText" style="min-height:120px" placeholder="先粘贴故事，再点击按段落拆分镜头"></textarea>
+<label class="muted">人物设定（每行一个：姓名｜年龄｜外貌｜服装｜性格）</label>
+<textarea id="characterText" placeholder="林月｜19岁｜黑色长发、琥珀色眼睛｜蓝银色长袍｜冷静坚韧"></textarea>
+<div class="row"><button id="saveProduction">保存制作资料</button><span id="productionStatus" class="muted"></span></div></section>
+</main><footer>AI 漫剧工作台 · 测试阶段 · 访问需口令 · 不会自动产生任何付费调用</footer>
+<script>
+let projects=[];
+const $=s=>document.querySelector(s);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+let accessKey=sessionStorage.getItem('manga_access_key')||'';
+async function api(url,opts={}){if(!accessKey)throw new Error('请先登录工作台');opts.headers={...(opts.headers||{}),'X-Access-Key':accessKey};const r=await fetch(url,opts);if(r.status===401){accessKey='';sessionStorage.removeItem('manga_access_key');$('#login').style.display='block';throw new Error('访问口令错误，请重新登录')}const j=await r.json();if(!r.ok)throw new Error(j.error||'请求失败');return j}
+$('#loginBtn').onclick=async()=>{accessKey=$('#loginKey').value.trim();if(!accessKey){$('#loginError').textContent='请填写访问口令';return}sessionStorage.setItem('manga_access_key',accessKey);try{await api('/api/projects');$('#login').style.display='none';$('#loginError').textContent='';await render();await loadProductionList()}catch(e){accessKey='';sessionStorage.removeItem('manga_access_key');$('#loginError').textContent='口令不正确，请检查后重试'}};
+async function render(){try{const j=await api('/api/projects');projects=j.projects;$('#projects').innerHTML=projects.length?projects.map(x=>'<div class="project"><b>'+esc(x.name)+'</b><span class="muted">'+esc(x.desc||'暂无简介')+'</span><div class="muted">'+new Date(x.created_at).toLocaleString()+' · '+x.files.length+' 个文件</div></div>').join(''):'还没有项目，先创建一个吧。';$('#projectSelect').innerHTML='<option value="">请选择项目</option>'+projects.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')}catch(e){$('#projects').textContent='后台连接失败：'+e.message}}
+$('#create').onclick=async()=>{const name=$('#name').value.trim();if(!name){alert('请先填写项目名称');return}try{await api('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:$('#desc').value.trim()})});$('#name').value='';$('#desc').value='';await render();await loadProductionList();alert('项目已保存到云端工作区')}catch(e){alert(e.message)}};
+$('#upload').onclick=async()=>{const files=[...$('#file').files],pid=$('#projectSelect').value;if(!pid){alert('请先选择项目');return}if(!files.length){alert('请先选择文件');return}for(const f of files){$('#files').textContent='正在上传：'+f.name;try{await api('/api/upload?project_id='+encodeURIComponent(pid)+'&filename='+encodeURIComponent(f.name),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:f})}catch(e){alert(f.name+' 上传失败：'+e.message);return}}$('#files').textContent='上传完成：'+files.length+' 个文件';$('#file').value='';await render()};
+
+async function loadProductionList(){const el=document.querySelector('#productionProject');if(!el)return;el.innerHTML='<option value="">请选择项目</option>'+projects.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')}
+document.querySelector('#productionProject')?.addEventListener('change',async e=>{const id=e.target.value;if(!id)return;try{const j=await api('/api/production?project_id='+encodeURIComponent(id));document.querySelector('#storyText').value=j.production.story||'';document.querySelector('#characterText').value=(j.production.characters||[]).map(c=>[c.name,c.age,c.appearance,c.costume,c.personality].join('｜')).join('\n');document.querySelector('#productionStatus').textContent='资料已加载'}catch(err){document.querySelector('#productionStatus').textContent=err.message}});
+
+document.querySelector('#splitStory')?.addEventListener('click',()=>{
+ const raw=document.querySelector('#storyText').value.trim();
+ if(!raw){alert('请先填写故事原文');return}
+ const chunks=raw.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
+ const shots=chunks.flatMap(x=>x.length>360?(x.match(/.{1,300}(?:[。！？!?]|$)/g)||[x]):[x]);
+ document.querySelector('#storyboardText').value=shots.slice(0,1000).map((x,i)=>(i+1)+'. '+x.trim()).join('\n');
+ document.querySelector('#productionStatus').textContent='已拆出 '+Math.min(shots.length,1000)+' 个待审核镜头（基础规则版）';
+});
+document.querySelector('#saveProduction')?.addEventListener('click',async()=>{
+ const id=document.querySelector('#productionProject').value;
+ if(!id){alert('请先选择项目');return}
+ const chars=document.querySelector('#characterText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
+  const a=line.split(/[｜|]/);
+  return {name:a[0]||'',age:a[1]||'',appearance:a[2]||'',costume:a[3]||'',personality:a[4]||''};
+ });
+ const storyboard=document.querySelector('#storyboardText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map((text,i)=>({
+  id:i+1,description:text.replace(/^\d+[.、）)]\s*/,''),status:'draft'
+ }));
+ try{
+  await api('/api/production',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_id:id,story:document.querySelector('#storyText').value,characters:chars,storyboard})});
+  document.querySelector('#productionStatus').textContent='保存成功 · '+chars.length+' 个人物设定 · '+storyboard.length+' 个分镜';
+ }catch(err){alert('保存失败：'+err.message)}
+});
+if(accessKey){$('#login').style.display='none';render().then(loadProductionList)}
+</script></body></html>
