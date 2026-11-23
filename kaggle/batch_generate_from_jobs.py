@@ -1,37 +1,134 @@
-1	"""Generate storyboard keyframes from workbench JSON on a Kaggle GPU.
-     2	Upload manga-generation-jobs.json and a reference image named character_reference.png
-     3	into /kaggle/working, then run this script. Models must already be cached in hf_cache.
-     4	"""
-     5	from pathlib import Path
-     6	import glob, json, time, os, shutil
-     7	import torch
-     8	from PIL import Image
-     9	from diffusers import StableDiffusionPipeline
-    10	ROOT=Path('/kaggle/working'); JOBS=ROOT/'manga-generation-jobs.json'; REFERENCE=ROOT/'character_reference.png'; OUT=ROOT/'manga_keyframes'; HF_HOME=ROOT/'hf_cache'
-    11	if not JOBS.is_file(): raise FileNotFoundError(JOBS)
-    12	if not REFERENCE.is_file(): raise FileNotFoundError(f'Missing {REFERENCE}')
-    13	if not torch.cuda.is_available(): raise RuntimeError('Select a Kaggle GPU session first')
-    14	base_candidates=sorted(glob.glob(str(HF_HOME/'models--Yntec--AnythingV5'/'snapshots'/'*'))); adapter_candidates=sorted(glob.glob(str(HF_HOME/'models--h94--IP-Adapter'/'snapshots'/'*')))
-    15	if not base_candidates: raise FileNotFoundError('AnythingV5 snapshot missing under '+str(HF_HOME))
-    16	if not adapter_candidates: raise FileNotFoundError('IP-Adapter snapshot missing under '+str(HF_HOME))
-    17	BASE=Path(base_candidates[-1]); ADAPTER=Path(adapter_candidates[-1])
-    18	data=json.loads(JOBS.read_text(encoding='utf-8')); characters=data.get('characters',[]); shots=data.get('storyboard',[])
-    19	if not shots: raise ValueError('No storyboard shots in JSON')
-    20	limit=max(1,int(os.environ.get('MAX_SHOTS','3'))); shots=shots[:limit]
-    21	print('GPU',torch.cuda.get_device_name(0),'GPU_COUNT',torch.cuda.device_count(),'BASE',BASE,'ADAPTER',ADAPTER,'SHOTS',len(shots),flush=True)
-    22	character_text='; '.join(' '.join(str(c.get(k,'')) for k in ('name','appearance','costume','personality')) for c in characters)
-    23	reference=Image.open(REFERENCE).convert('RGB'); OUT.mkdir(parents=True,exist_ok=True)
-    24	pipe=StableDiffusionPipeline.from_pretrained(str(BASE),torch_dtype=torch.float16,variant='fp16',safety_checker=None,requires_safety_checker=False,local_files_only=True).to('cuda')
-    25	pipe.disable_attention_slicing(); pipe.enable_vae_slicing()
-    26	pipe.load_ip_adapter(str(ADAPTER),subfolder='models',weight_name='ip-adapter_sd15_light.safetensors',image_encoder_folder='image_encoder'); pipe.set_ip_adapter_scale(0.75)
-    27	negative='duplicate person, two people, extra limbs, extra fingers, deformed hands, blurry, low quality, text, watermark'
-    28	manifest=[]; started=time.time()
-    29	for i,shot in enumerate(shots,1):
-    30	 sid=int(shot.get('id',i)); prompt=f"{data.get('style','anime cinematic manhua')}, single character, {character_text}, {shot.get('visual','')}, {shot.get('action','')}, {shot.get('shot_type','medium shot')}, {shot.get('prompt','')}, detailed clean composition"
-    31	 generator=torch.Generator(device='cuda').manual_seed(20261124+sid)
-    32	 image=pipe(prompt,ip_adapter_image=reference,negative_prompt=negative,num_inference_steps=18,guidance_scale=6.5,width=512,height=512,generator=generator).images[0]
-    33	 filename=f'shot_{sid:04d}.png'; image.save(OUT/filename); manifest.append({'id':sid,'file':filename,'dialogue':shot.get('dialogue',''),'prompt':prompt}); print('SAVED',filename,flush=True)
-    34	(OUT/'manifest.json').write_text(json.dumps({'project_name':data.get('project_name',''),'shots':manifest},ensure_ascii=False,indent=2),encoding='utf-8')
-    35	archive=shutil.make_archive(str(ROOT/'manga_keyframes'),'zip',root_dir=OUT)
-    36	print('ZIP',archive,flush=True)
-    37	print('DONE',len(manifest),'shots; seconds',round(time.time()-started,1))
+"""Resumable Kaggle GPU worker for storyboard keyframes.
+
+Required files in /kaggle/working:
+  manga-generation-jobs.json
+  character_reference.png (or HEROINE_REFERENCE env override)
+Models must already exist in hf_cache; this worker never downloads weights.
+Run: MAX_SHOTS=1 python kaggle/batch_generate_from_jobs.py
+"""
+from pathlib import Path
+import argparse, glob, json, os, shutil, time, gc
+import torch
+from PIL import Image
+from diffusers import StableDiffusionPipeline
+
+ROOT = Path('/kaggle/working')
+JOBS = ROOT / 'manga-generation-jobs.json'
+REFERENCE = Path(os.environ.get('HEROINE_REFERENCE', str(ROOT / 'character_reference.png')))
+OUT = ROOT / 'manga_keyframes'
+HF_HOME = ROOT / 'hf_cache'
+
+
+def atomic_json(path: Path, value):
+    tmp = path.with_suffix(path.suffix + '.tmp')
+    tmp.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding='utf-8')
+    tmp.replace(path)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max-shots', type=int, default=int(os.environ.get('MAX_SHOTS', '3')))
+    parser.add_argument('--resume', action='store_true', help='skip existing valid keyframes')
+    args = parser.parse_args()
+    if not JOBS.is_file():
+        raise FileNotFoundError(f'Missing jobs JSON: {JOBS}')
+    if not REFERENCE.is_file():
+        raise FileNotFoundError(f'Missing character reference: {REFERENCE}')
+    if not torch.cuda.is_available():
+        raise RuntimeError('Kaggle GPU is unavailable; select a free GPU session')
+
+    base_candidates = sorted(glob.glob(str(HF_HOME / 'models--Yntec--AnythingV5' / 'snapshots' / '*')))
+    adapter_candidates = sorted(glob.glob(str(HF_HOME / 'models--h94--IP-Adapter' / 'snapshots' / '*')))
+    if not base_candidates:
+        raise FileNotFoundError(f'AnythingV5 snapshot missing under {HF_HOME}')
+    if not adapter_candidates:
+        raise FileNotFoundError(f'IP-Adapter snapshot missing under {HF_HOME}')
+    BASE, ADAPTER = Path(base_candidates[-1]), Path(adapter_candidates[-1])
+    required = [BASE / 'model_index.json', BASE / 'unet' / 'diffusion_pytorch_model.fp16.safetensors',
+                ADAPTER / 'models' / 'ip-adapter_sd15_light.safetensors']
+    missing = [str(p) for p in required if not p.is_file()]
+    if missing:
+        raise FileNotFoundError('Incomplete local model cache: ' + '; '.join(missing))
+
+    data = json.loads(JOBS.read_text(encoding='utf-8'))
+    characters = data.get('characters', [])
+    shots = data.get('storyboard', [])
+    if not shots:
+        raise ValueError('No storyboard shots in JSON')
+    if args.max_shots < 1:
+        raise ValueError('--max-shots must be >= 1')
+    shots = shots[:args.max_shots]
+    OUT.mkdir(parents=True, exist_ok=True)
+    ref = Image.open(REFERENCE).convert('RGB')
+    character_text = '; '.join(
+        ' '.join(str(c.get(k, '')) for k in ('name', 'age', 'appearance', 'costume', 'personality'))
+        for c in characters
+    )
+    print('GPU', torch.cuda.get_device_name(0), 'GPU_COUNT', torch.cuda.device_count(),
+          'BASE', BASE, 'ADAPTER', ADAPTER, 'SHOTS', len(shots), 'REFERENCE', REFERENCE, flush=True)
+
+    pipe = StableDiffusionPipeline.from_pretrained(
+        str(BASE), torch_dtype=torch.float16, variant='fp16', safety_checker=None,
+        requires_safety_checker=False, local_files_only=True
+    ).to('cuda')
+    pipe.disable_attention_slicing()
+    pipe.enable_vae_slicing()
+    pipe.load_ip_adapter(str(ADAPTER), subfolder='models',
+                         weight_name='ip-adapter_sd15_light.safetensors',
+                         image_encoder_folder='image_encoder')
+    pipe.set_ip_adapter_scale(0.75)
+
+    manifest_path = OUT / 'manifest.json'
+    manifest = {'project_name': data.get('project_name', ''), 'style': data.get('style', ''),
+                'reference': REFERENCE.name, 'model': 'Yntec/AnythingV5 fp16 + IP-Adapter SD15 Light',
+                'shots': []}
+    if args.resume and manifest_path.is_file():
+        try:
+            old = json.loads(manifest_path.read_text(encoding='utf-8'))
+            manifest['shots'] = old.get('shots', [])
+        except Exception:
+            pass
+    done_ids = {int(x['id']) for x in manifest['shots'] if x.get('status') == 'done'}
+    negative = 'duplicate person, two people, extra limbs, extra fingers, deformed hands, blurry, low quality, text, watermark'
+    started = time.time()
+    for index, shot in enumerate(shots, 1):
+        sid = int(shot.get('id', index))
+        filename = f'shot_{sid:04d}.png'
+        target = OUT / filename
+        if args.resume and sid in done_ids and target.is_file() and target.stat().st_size > 10000:
+            print('SKIP', filename, 'already complete', flush=True)
+            continue
+        prompt = ', '.join(x for x in [
+            data.get('style', 'Chinese anime donghua, cinematic manhua'),
+            'single character', character_text, shot.get('visual', ''), shot.get('action', ''),
+            shot.get('shot_type', 'medium shot'), shot.get('prompt', ''), 'detailed clean composition'
+        ] if x)
+        seed = int(data.get('seed', 20261124)) + sid
+        generator = torch.Generator(device='cuda').manual_seed(seed)
+        t0 = time.time()
+        image = pipe(prompt, ip_adapter_image=ref, negative_prompt=negative,
+                     num_inference_steps=18, guidance_scale=6.5, width=512, height=512,
+                     generator=generator).images[0]
+        image.save(target, format='PNG')
+        if target.stat().st_size < 10000:
+            raise RuntimeError(f'Generated image looks incomplete: {target}')
+        record = {'id': sid, 'file': filename, 'status': 'done', 'seed': seed,
+                  'width': image.width, 'height': image.height, 'bytes': target.stat().st_size,
+                  'seconds': round(time.time() - t0, 2), 'dialogue': shot.get('dialogue', ''),
+                  'prompt': prompt}
+        manifest['shots'] = [x for x in manifest['shots'] if int(x.get('id', -1)) != sid] + [record]
+        atomic_json(manifest_path, manifest)
+        print('SAVED', filename, record['bytes'], 'bytes', record['seconds'], 'sec', flush=True)
+        del image, generator
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    archive = shutil.make_archive(str(ROOT / 'manga_keyframes'), 'zip', root_dir=OUT)
+    print('ZIP', archive, Path(archive).stat().st_size, 'bytes', flush=True)
+    print('DONE', len([x for x in manifest['shots'] if x.get('status') == 'done']),
+          'shots; seconds', round(time.time() - started, 1), flush=True)
+
+
+if __name__ == '__main__':
+    main()
+[exit status 0]
