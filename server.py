@@ -53,7 +53,16 @@ class Handler(SimpleHTTPRequestHandler):
             with f.open("rb") as stream:
                 while chunk:=stream.read(1024*1024): self.wfile.write(chunk)
             return
+        # Only serve the public app shell. Never expose project data, credentials,
+        # source files, backups, or Kaggle artifacts through SimpleHTTPRequestHandler.
+        if p.path not in ("/", "/index.html"):
+            return self.send_json({"error":"not found"},404)
         return super().do_GET()
+    def do_HEAD(self):
+        p=urlparse(self.path)
+        if p.path in ("/", "/index.html"):
+            return super().do_HEAD()
+        self.send_response(404); self.end_headers()
     def do_POST(self):
         p=urlparse(self.path)
         if self.headers.get("X-Access-Key") != ACCESS_KEY:
@@ -113,3 +122,4 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__=="__main__":
     print("Manga API listening on 0.0.0.0:8766",flush=True)
     ThreadingHTTPServer(("0.0.0.0",8766),Handler).serve_forever()
+[exit status 0]
