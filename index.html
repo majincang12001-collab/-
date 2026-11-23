@@ -23,24 +23,24 @@ footer{text-align:center;color:#94a3b8;font-size:12px;padding:25px}
 <body>
 <header class="top"><div><div class="brand">🎬 AI 漫剧工作台</div><div class="tag">手机 / 电脑通用 · 制作控制台</div></div><span class="pill">原型版</span></header>
 <main class="wrap"><section class="login" id="login"><h2>工作台登录</h2><p class="muted">请输入访问口令，验证后即可查看项目和上传文件。</p><input id="loginKey" type="password" placeholder="访问口令" autocomplete="current-password"><button id="loginBtn">登录工作台</button><p class="muted" id="loginError"></p></section>
-<section class="hero"><h1>把故事，变成漫剧</h1><p>从小说、剧本到人物设定、分镜、画面与成片，逐步整合到一个工作台。当前通过 Kaggle 免费 GPU 验证图片生成，尚未与工作台自动联动。</p></section>
+<section class="hero"><h1>把故事，变成漫剧</h1><p>从小说、剧本到人物设定、分镜、画面与成片，逐步整合到一个工作台。已支持导出分镜任务交给 Kaggle 免费 GPU；目前需要手动上传任务和生成素材。</p></section>
 <div class="grid">
 <section class="card"><h2>新建漫剧项目</h2><label class="muted">项目名称</label><input id="name" placeholder="例如：苍穹之上的旅人"><label class="muted">故事简介（可选）</label><textarea id="desc" placeholder="简单写下故事背景或粘贴故事梗概"></textarea><button id="create">创建项目</button></section>
 <section class="card"><h2>上传小说 / 剧本</h2><p class="muted">支持先选择 TXT、MD、PDF、DOCX 文件。文件会上传并保存到云端工作区；单个文件最大 40MB。</p><input id="file" type="file" accept=".txt,.md,.pdf,.doc,.docx" multiple><label class="muted">上传到哪个项目</label><select id="projectSelect" style="width:100%;padding:10px;border:1px solid #d7deea;border-radius:10px;margin:6px 0"><option value="">请先创建项目</option></select><button class="secondary" id="upload">上传所选文件</button><div id="files" class="muted" style="margin-top:8px">尚未选择文件</div></section>
 <section class="card"><h2>项目列表</h2><div id="projects" class="muted">还没有项目，先创建一个吧。</div></section>
-<section class="card"><h2>制作流程</h2><div class="project"><b>① 故事与剧本</b><span class="muted">小说拆解、章节改编、对白整理</span></div><div class="project"><b>② 人物与场景库</b><span class="muted">角色设定、参考图、场景资产</span></div><div class="project"><b>③ 自动分镜与画面</b><span class="muted">镜头拆分、图片生成、人物一致性</span></div><div class="project"><b>④ 视频与后期</b><span class="muted">首尾帧、配音、字幕、合成导出</span></div><div class="status"><span class="dot"></span><span class="muted">Kaggle 已跑通 IP-Adapter 参考图测试；生成素材可在项目文件中预览和下载，自动任务联动仍在开发。</span></div></section>
+<section class="card"><h2>制作流程</h2><div class="project"><b>① 故事与剧本</b><span class="muted">小说拆解、章节改编、对白整理</span></div><div class="project"><b>② 人物与场景库</b><span class="muted">角色设定、参考图、场景资产</span></div><div class="project"><b>③ 自动分镜与画面</b><span class="muted">镜头拆分、图片生成、人物一致性</span></div><div class="project"><b>④ 视频与后期</b><span class="muted">首尾帧、配音、字幕、合成导出</span></div><div class="status"><span class="dot"></span><span class="muted">已验证 IP-Adapter 人物参考图出图；支持普通话旁白、字幕和动态分镜 MP4 合成。AI 动态人物视频仍待接入。</span></div></section>
 </div>
 <section class="card" style="margin-top:14px"><h2>故事与人物资料</h2>
-<p class="muted">先保存原文和角色设定，后续接入自动剧本与分镜引擎。</p>
+<p class="muted">先保存原文和角色设定，再生成分镜草稿、导出图片任务或制作动态分镜预览。</p>
 <select id="productionProject" style="width:100%;padding:10px;border:1px solid #d7deea;border-radius:10px;margin:6px 0"><option value="">请选择项目</option></select>
 <label class="muted">故事原文 / 梗概</label><textarea id="storyText" style="min-height:130px" placeholder="粘贴故事梗概或章节内容"></textarea>
-<div class="row" style="margin-top:8px"><button type="button" class="secondary" id="splitStory">按段落拆分镜头（基础版）</button><span class="muted">每段先生成一个待审核镜头，不调用付费 AI</span></div>
+<div class="row" style="margin-top:8px"><button type="button" class="secondary" id="splitStory">快速生成分镜草稿（规则辅助）</button><span class="muted">按句子提取画面、对白和动作初稿；不是大模型自动编剧</span></div>
 <label class="muted">结构化分镜（每行一个镜头，使用“｜”分隔五栏，可直接修改）</label>
 <p class="muted">格式：景别｜画面内容｜人物动作/表情｜对白/旁白｜图片生成提示词。保存后会拆成独立字段，后续可直接交给出图引擎。</p>
 <textarea id="storyboardText" style="min-height:190px" placeholder="中景｜月色下的古城街道｜林月停下脚步，警惕地环顾四周｜旁白：夜色渐深｜anime fantasy, ancient Chinese city at night, cinematic medium shot"></textarea>
 <label class="muted">人物设定（每行一个：姓名｜年龄｜外貌｜服装｜性格）</label>
 <textarea id="characterText" placeholder="林月｜19岁｜黑色长发、琥珀色眼睛｜蓝银色长袍｜冷静坚韧"></textarea>
-<div class="row"><button id="saveProduction">保存制作资料</button><button type="button" class="secondary" id="exportJobs">导出图片生成任务 JSON</button><span id="productionStatus" class="muted"></span></div></section>
+<div class="row"><button id="saveProduction">保存制作资料</button><button type="button" class="secondary" id="exportJobs">导出图片生成任务 JSON</button><button type="button" class="secondary" id="renderPreview">生成动态分镜预览 MP4</button><span id="productionStatus" class="muted"></span></div></section>
 </main><footer>AI 漫剧工作台 · 测试阶段 · 访问需口令 · 不会自动产生任何付费调用</footer>
 <script>
 let projects=[];
@@ -49,8 +49,8 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 let accessKey=sessionStorage.getItem('manga_access_key')||'';
 async function api(url,opts={}){if(!accessKey)throw new Error('请先登录工作台');opts.headers={...(opts.headers||{}),'X-Access-Key':accessKey};const r=await fetch(url,opts);if(r.status===401){accessKey='';sessionStorage.removeItem('manga_access_key');$('#login').style.display='block';throw new Error('访问口令错误，请重新登录')}const j=await r.json();if(!r.ok)throw new Error(j.error||'请求失败');return j}
 $('#loginBtn').onclick=async()=>{accessKey=$('#loginKey').value.trim();if(!accessKey){$('#loginError').textContent='请填写访问口令';return}sessionStorage.setItem('manga_access_key',accessKey);try{await api('/api/projects');$('#login').style.display='none';$('#loginError').textContent='';await render();await loadProductionList()}catch(e){accessKey='';sessionStorage.removeItem('manga_access_key');$('#loginError').textContent='口令不正确，请检查后重试'}};
-async function render(){try{const j=await api('/api/projects');projects=j.projects;$('#projects').innerHTML=projects.length?projects.map(x=>{const files=(x.files||[]).map(f=>{const image=/\.(png|jpe?g|webp)$/i.test(f.name);return '<div class="file-item">'+(image?'<img class="file-thumb" data-preview="'+esc(f.stored)+'" alt="图片预览">':'')+'<div class="file-meta"><b>'+esc(f.name)+'</b><small>'+Math.max(1,Math.round(f.size/1024))+' KB</small></div><button class="secondary file-download" data-file="'+esc(f.stored)+'" data-name="'+esc(f.name)+'">下载</button></div>'}).join('');return '<div class="project"><b>'+esc(x.name)+'</b><span class="muted">'+esc(x.desc||'暂无简介')+'</span><div class="muted">'+new Date(x.created_at).toLocaleString()+' · '+(x.files||[]).length+' 个文件</div><div class="file-list">'+(files||'<span class="muted">暂无文件</span>')+'</div></div>'}).join(''):'还没有项目，先创建一个吧。';$('#projectSelect').innerHTML='<option value="">请选择项目</option>'+projects.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');hydratePreviews()}catch(e){$('#projects').textContent='后台连接失败：'+e.message}}
-async function hydratePreviews(){document.querySelectorAll('img[data-preview]').forEach(async img=>{try{const r=await fetch('/api/files/'+encodeURIComponent(img.dataset.preview),{headers:{'X-Access-Key':accessKey}});if(r.ok)img.src=URL.createObjectURL(await r.blob())}catch(e){}})}
+async function render(){try{const j=await api('/api/projects');projects=j.projects;$('#projects').innerHTML=projects.length?projects.map(x=>{const files=(x.files||[]).map(f=>{const image=/\.(png|jpe?g|webp)$/i.test(f.name);const video=/\.mp4$/i.test(f.name);return '<div class="file-item">'+(image?'<img class="file-thumb" data-preview="'+esc(f.stored)+'" alt="图片预览">':video?'<video class="file-video" controls playsinline data-preview="'+esc(f.stored)+'"></video>':'')+'<div class="file-meta"><b>'+esc(f.name)+'</b><small>'+Math.max(1,Math.round(f.size/1024))+' KB</small></div><button class="secondary file-download" data-file="'+esc(f.stored)+'" data-name="'+esc(f.name)+'">下载</button></div>'}).join('');return '<div class="project"><b>'+esc(x.name)+'</b><span class="muted">'+esc(x.desc||'暂无简介')+'</span><div class="muted">'+new Date(x.created_at).toLocaleString()+' · '+(x.files||[]).length+' 个文件</div><div class="file-list">'+(files||'<span class="muted">暂无文件</span>')+'</div></div>'}).join(''):'还没有项目，先创建一个吧。';$('#projectSelect').innerHTML='<option value="">请选择项目</option>'+projects.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');hydratePreviews()}catch(e){$('#projects').textContent='后台连接失败：'+e.message}}
+async function hydratePreviews(){document.querySelectorAll('[data-preview]').forEach(async el=>{try{const r=await fetch('/api/files/'+encodeURIComponent(el.dataset.preview),{headers:{'X-Access-Key':accessKey}});if(r.ok)el.src=URL.createObjectURL(await r.blob())}catch(e){}})}
 $('#projects').addEventListener('click',async e=>{const btn=e.target.closest('.file-download');if(!btn)return;try{const r=await fetch('/api/files/'+encodeURIComponent(btn.dataset.file),{headers:{'X-Access-Key':accessKey}});if(!r.ok)throw new Error('文件下载失败');const url=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=url;a.download=btn.dataset.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}catch(err){alert(err.message)}});
 $('#create').onclick=async()=>{const name=$('#name').value.trim();if(!name){alert('请先填写项目名称');return}try{await api('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:$('#desc').value.trim()})});$('#name').value='';$('#desc').value='';await render();await loadProductionList();alert('项目已保存到云端工作区')}catch(e){alert(e.message)}};
 $('#upload').onclick=async()=>{const files=[...$('#file').files],pid=$('#projectSelect').value;if(!pid){alert('请先选择项目');return}if(!files.length){alert('请先选择文件');return}for(const f of files){$('#files').textContent='正在上传：'+f.name;try{await api('/api/upload?project_id='+encodeURIComponent(pid)+'&filename='+encodeURIComponent(f.name),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:f})}catch(e){alert(f.name+' 上传失败：'+e.message);return}}$('#files').textContent='上传完成：'+files.length+' 个文件';$('#file').value='';await render()};
@@ -61,14 +61,14 @@ document.querySelector('#productionProject')?.addEventListener('change',async e=
 function splitSentences(text){return (text.match(/[^。！？!?；;]+[。！？!?；;]?/g)||[text]).map(x=>x.trim()).filter(Boolean)}
 function shotFields(line){const a=line.split(/[｜|]/).map(x=>x.trim());return {shot_type:a[0]||'中景',visual:a[1]||'',action:a[2]||'',dialogue:a[3]||'',prompt:a[4]||''}}
 function shotLine(s){return [s.shot_type||'中景',s.visual||'',s.action||'',s.dialogue||'',s.prompt||''].join('｜')}
+function inferAction(text){if(/[跑|冲|奔|追|逃]/.test(text))return '人物快速移动，身体前倾，动作具有速度感';if(/[战|打|刺|挥|攻击|斩]/.test(text))return '人物进入动作姿态，突出动作方向与张力';if(/[哭|泪|悲|痛苦]/.test(text))return '人物眼含泪水，面部表现悲伤情绪';if(/[笑|喜悦|开心]/.test(text))return '人物露出笑容，表情放松自然';if(/[看|望|盯|注视|凝视]/.test(text))return '人物转头注视目标，眼神聚焦';if(/[说|问|喊|答|道：|说道]/.test(text))return '人物开口说话，捕捉面部表情';if(/[走|踏|进入|离开]/.test(text))return '人物向前行走，镜头跟随人物移动';return '人物保持自然姿态，镜头捕捉当前情绪和环境'}
+function inferShot(text){if(/[眼神|瞳孔|脸庞|嘴角|泪珠|面容]/.test(text))return '特写';if(/[城市|古城|山脉|天空|森林|宫殿|远方|大地]/.test(text))return '远景';return '中景'}
 document.querySelector('#splitStory')?.addEventListener('click',()=>{
- const raw=document.querySelector('#storyText').value.trim();
- if(!raw){alert('请先填写故事原文');return}
- const paragraphs=raw.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
- const chunks=paragraphs.flatMap(p=>p.length>420?splitSentences(p):[p]);
- const shots=chunks.slice(0,1000).map((text,i)=>({shot_type:i===0?'远景':'中景',visual:text,action:'待补充：根据剧情补充人物动作与表情',dialogue:'待提取：补充对白或旁白',prompt:'待生成：补充人物外貌、场景、构图、光线与画风'}));
- document.querySelector('#storyboardText').value=shots.map(shotLine).join('\n');
- document.querySelector('#productionStatus').textContent='已生成 '+shots.length+' 条结构化分镜草稿；这是文本拆分，动作、对白和画面提示词仍需审核补全';
+ const raw=document.querySelector('#storyText').value.trim();if(!raw){alert('请先填写故事原文');return}
+ const characterLines=$('#characterText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);const character=characterLines[0]||'';
+ const chunks=raw.split(/\n\s*\n/).flatMap(p=>splitSentences(p)).filter(Boolean).slice(0,1000);
+ const shots=chunks.map((text,i)=>{const quoted=(text.match(/[“「『"]([^”」』"]+)[”」』"]/g)||[]).map(x=>x.slice(1,-1));const visual=text.replace(/[“「『"][^”」』"]+[”」』"]/g,'人物说话').trim()||'人物对话场景';const dialogue=quoted.length?quoted.join('，'):'旁白：'+text;const action=inferAction(text);const prompt='Chinese anime donghua, '+character+', '+visual+', '+action+', '+inferShot(text)+', consistent character design, cinematic lighting, detailed background, clean composition';return {shot_type:inferShot(text),visual,action,dialogue,prompt}});
+ $('#storyboardText').value=shots.map(shotLine).join('\n');$('#productionStatus').textContent='已生成 '+shots.length+' 条分镜初稿：提取对白并按关键词建议景别、动作和画面提示词；请人工审核';
 });
 document.querySelector('#exportJobs')?.addEventListener('click',()=>{
  const projectId=document.querySelector('#productionProject').value;
@@ -80,6 +80,23 @@ document.querySelector('#exportJobs')?.addEventListener('click',()=>{
  const payload={schema_version:1,project_name:project.name,style:'anime cinematic manhua',characters,storyboard:shots,notes:'待生成任务清单；上传到 Kaggle worker 后运行批量出图脚本。'};
  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='manga-generation-jobs.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
  document.querySelector('#productionStatus').textContent='已导出 '+shots.length+' 条图片生成任务，可上传到 Kaggle 免费 GPU worker';
+});
+async function pollRender(jobId){
+ const status=$('#productionStatus');
+ for(let i=0;i<180;i++){
+  try{const j=await api('/api/render/status?job_id='+encodeURIComponent(jobId));const x=j.job;status.textContent='视频制作中 '+(x.progress||0)+'% · '+(x.message||'');
+   if(x.status==='done'){const r=await fetch('/api/render/download?job_id='+encodeURIComponent(jobId),{headers:{'X-Access-Key':accessKey}});if(!r.ok)throw new Error('视频已完成但下载失败');const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='manga-episode-preview.mp4';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);status.textContent='动态分镜预览已完成，MP4 已开始下载（含普通话旁白与字幕）';return}
+   if(x.status==='failed')throw new Error(x.message||'视频生成失败');
+  }catch(e){status.textContent='视频任务异常：'+e.message;return}
+  await new Promise(resolve=>setTimeout(resolve,3000));
+ }
+ status.textContent='任务仍在后台运行，可稍后刷新查看；任务编号 '+jobId;
+}
+document.querySelector('#renderPreview')?.addEventListener('click',async()=>{
+ const id=$('#productionProject').value;if(!id){alert('请先选择项目');return}
+ try{await api('/api/production',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_id:id,story:$('#storyText').value,characters:$('#characterText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{const a=line.split(/[｜|]/);return {name:a[0]||'',age:a[1]||'',appearance:a[2]||'',costume:a[3]||'',personality:a[4]||''}}),storyboard:$('#storyboardText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map((line,i)=>{const f=shotFields(line);return {id:i+1,shot_type:f.shot_type,visual:f.visual,action:f.action,dialogue:f.dialogue,prompt:f.prompt,description:f.visual}})})});
+ const j=await api('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_id:id})});$('#productionStatus').textContent='动态分镜预览任务已启动';pollRender(j.job_id);
+ }catch(e){alert('无法启动视频制作：'+e.message)}
 });
 document.querySelector('#saveProduction')?.addEventListener('click',async()=>{
  const id=document.querySelector('#productionProject').value;
