@@ -2,14 +2,15 @@
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, quote
-import json, uuid, datetime, re
+import json, uuid, datetime, re, subprocess, sys
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 UPLOADS = DATA / "uploads"
 PROJECTS = DATA / "projects.json"
 PRODUCTION = DATA / "production"
-PRODUCTION.mkdir(exist_ok=True)
+RENDERS = DATA / "renders"
+PRODUCTION.mkdir(exist_ok=True); RENDERS.mkdir(exist_ok=True)
 DATA.mkdir(exist_ok=True); UPLOADS.mkdir(exist_ok=True)
 MAX_UPLOAD = 40 * 1024 * 1024
 ACCESS_KEY = (DATA / "access.key").read_text("utf-8").strip()
@@ -38,6 +39,21 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"ok":True,"service":"manga-console","time":datetime.datetime.now(datetime.timezone.utc).isoformat()})
         if p.path == "/api/projects":
             return self.send_json({"projects":load_projects()})
+        if p.path == "/api/render/status":
+            q=parse_qs(p.query); job_id=(q.get("job_id") or [""])[0]
+            if not re.fullmatch(r"[a-f0-9]{16}",job_id): return self.send_json({"error":"job id invalid"},400)
+            matches=list(RENDERS.glob(f"*/{job_id}.json"))
+            if not matches: return self.send_json({"error":"任务不存在"},404)
+            return self.send_json({"job":json.loads(matches[0].read_text("utf-8"))})
+        if p.path == "/api/render/download":
+            q=parse_qs(p.query); job_id=(q.get("job_id") or [""])[0]
+            if not re.fullmatch(r"[a-f0-9]{16}",job_id): return self.send_json({"error":"job id invalid"},400)
+            matches=list(RENDERS.glob(f"*/{job_id}/episode_preview.mp4"))
+            if not matches: return self.send_json({"error":"视频尚未生成"},404)
+            f=matches[0]; self.send_response(200); self.send_header("Content-Type","video/mp4"); self.send_header("Content-Length",str(f.stat().st_size)); self.send_header("Content-Disposition",'attachment; filename="manga-episode-preview.mp4"'); self.end_headers()
+            with f.open("rb") as stream:
+                while chunk:=stream.read(1024*1024): self.wfile.write(chunk)
+            return
         if p.path == "/api/production":
             q=parse_qs(p.query); project_id=(q.get("project_id") or [""])[0]
             if not any(x["id"]==project_id for x in load_projects()): return self.send_json({"error":"项目不存在"},404)
@@ -78,6 +94,22 @@ class Handler(SimpleHTTPRequestHandler):
                 item={"id":uuid.uuid4().hex[:12],"name":name,"desc":desc,"created_at":datetime.datetime.now().astimezone().isoformat(),"files":[]}
                 items.insert(0,item); save_projects(items)
                 return self.send_json({"project":item},201)
+            except Exception as e: return self.send_json({"error":str(e)},400)
+        if p.path == "/api/render":
+            try:
+                n=int(self.headers.get("Content-Length","0"))
+                if n>10000: return self.send_json({"error":"request too large"},413)
+                obj=json.loads(self.rfile.read(n) or b"{}")
+                project_id=str(obj.get("project_id",""))
+                if not any(x["id"]==project_id for x in load_projects()): return self.send_json({"error":"项目不存在"},404)
+                prod=PRODUCTION/(project_id+".json")
+                if not prod.exists() or not json.loads(prod.read_text("utf-8")).get("storyboard"): return self.send_json({"error":"请先保存至少一个分镜"},400)
+                job_id=uuid.uuid4().hex[:16]; job_dir=RENDERS/project_id/job_id; job_dir.mkdir(parents=True,exist_ok=True)
+                state=RENDERS/project_id/f"{job_id}.json"
+                state.write_text(json.dumps({"job_id":job_id,"status":"queued","progress":0,"message":"任务排队中"},ensure_ascii=False),"utf-8")
+                log=(job_dir/"render.log").open("w")
+                subprocess.Popen([sys.executable,str(ROOT/"render_episode.py"),"--project-id",project_id,"--job-id",job_id],cwd=str(ROOT),stdout=log,stderr=log,start_new_session=True)
+                return self.send_json({"job_id":job_id,"status":"queued"},202)
             except Exception as e: return self.send_json({"error":str(e)},400)
         if p.path == "/api/production":
             try:
