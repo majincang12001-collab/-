@@ -27,5 +27,8 @@ for i,shot in enumerate(shots,1):
  image=pipe(prompt,ip_adapter_image=reference,negative_prompt=negative,num_inference_steps=18,guidance_scale=6.5,width=512,height=512,generator=generator).images[0]
  filename=f'shot_{sid:04d}.png'; image.save(OUT/filename); manifest.append({'id':sid,'file':filename,'dialogue':shot.get('dialogue',''),'prompt':prompt}); print('SAVED',filename,flush=True)
 (OUT/'manifest.json').write_text(json.dumps({'project_name':data.get('project_name',''),'shots':manifest},ensure_ascii=False,indent=2),encoding='utf-8')
+import shutil
+archive=shutil.make_archive(str(ROOT/'manga_keyframes'),'zip',root_dir=OUT)
+print('ZIP',archive,flush=True)
 print('DONE',len(manifest),'shots; seconds',round(time.time()-started,1))
 [exit status 0]
