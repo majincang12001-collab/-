@@ -71,4 +71,9 @@
 - Stable Video Diffusion 已实际导出 1024×576、7fps、8 帧、1.14 秒 H.264 短片，角色主体清晰，逐帧哈希不同。
 - 视觉检查显示角色基本静止，仅头发/细节轻微变化，动作幅度不足，暂不进入正式成片。详见 `ANIMATEDIFF_TEST_REPORT.md`。
 - 商业使用前必须核对 Stability AI license；模型卡说明当前模型 intended for research purposes。
-[exit status 0]
+
+## 2026-11-24 SVD 图片转视频实测（已跑通推理，动作质量待提升）
+- StableVideoDiffusionPipeline fp16 组件在 Kaggle 免费双 T4 成功加载；14 帧首次 OOM，启用 unet.enable_forward_chunking() 后改为 8 帧成功。
+- 输出 1024×576、7 fps、8 帧、1.14 秒 H.264 MP4；低 noise 版本人物近乎静止，提高到 noise_aug_strength=0.20、motion_bucket_id=220 后出现轻微头发/姿态变化，但还没有明显走路或转身动作。
+- 已将 8 帧动态测试视频和抽帧对比图登记到正式项目文件列表，标记为测试素材，尚未进入正式成片。
+- 详细记录见 ANIMATEDIFF_TEST_REPORT.md。SVD 使用 Stability AI Community License，商业用途需注册并遵守收入门槛及署名条款。
