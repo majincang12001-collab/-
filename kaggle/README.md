@@ -7,12 +7,12 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 ## Notebook archive
 
 `notebook57e8a33be4.ipynb` is an exported source snapshot from Kaggle. Execution outputs, counters, and transient cell metadata were stripped before backup. It preserves the cell source history, including earlier ComfyUI experiments and the later Diffusers/Tiny-SD tests. Some old cells are marked as raw or contain malformed draft fragments; treat this as an audit/archive snapshot, not a clean run-all notebook. The exported Kaggle metadata reported GPU disabled, so GPU availability must be re-verified in the live session before new experiments.
+
+
+## 当前已验证的视频后期 MVP
+- Box 控制端安装了 FFmpeg 6.1.1、eSpeak NG 1.51、Pillow 和 Noto CJK 字体。
+- `render_episode.py` 从项目已保存的分镜读取内容，优先匹配项目文件名中的 `shot_0001.png` 等镜头关键帧；缺少原画时生成明确标注的文字占位卡。
+- 对画面做轻微 Ken Burns 推近，使用普通话 eSpeak NG 合成旁白，生成 SRT 字幕，最后输出 MP4。
+- 工作台的“生成动态分镜预览 MP4”按钮会后台启动任务并在完成后下载视频。
+- 这是动态分镜/animatic，不等于 AnimateDiff、SVD 等模型生成的真实人物动作视频。语音目前为离线合成测试音色。
 [exit status 0]
-
-## Workbench batch generation
-1. In the workbench, select a project, edit structured storyboard lines, and click **导出图片生成任务 JSON**.
-2. Upload `manga-generation-jobs.json` and the chosen character reference image renamed to `character_reference.png` into `/kaggle/working`.
-3. Run `batch_generate_from_jobs.py` in the existing Kaggle GPU session. It uses the cached AnythingV5 fp16 and IP-Adapter SD15 Light weights, then writes 512×512 keyframes and `manifest.json` under `/kaggle/working/manga_keyframes`.
-4. Download the generated folder and upload the keyframes to the matching workbench project.
-
-This is a manual handoff, not an automatic cloud queue. It requires the free Kaggle session to be active and model caches to exist. Review prompts and output before using them in a finished episode.
