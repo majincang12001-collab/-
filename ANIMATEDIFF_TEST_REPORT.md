@@ -52,8 +52,8 @@
 ## SVD image-to-video 实测进展（2026-11-24）
 
 ### Pipeline 与显存
-- 使用 stabilityai/stable-video-diffusion-img2vid 的 Diffusers fp16 组件加载 StableVideoDiffusionPipeline 成功。
-- 首次 14 帧推理遇到 CUDA OOM；启用 unet.enable_forward_chunking() 并将测试缩到 8 帧后成功，decode_chunk_size=1。
+- 使用 `stabilityai/stable-video-diffusion-img2vid` 的 Diffusers fp16 组件加载 `StableVideoDiffusionPipeline` 成功。
+- 首次 14 帧推理遇到 CUDA OOM；启用 `unet.enable_forward_chunking()` 并将测试缩到 8 帧后成功，`decode_chunk_size=1`。
 - Kaggle 仍为免费双 T4 Draft Session；没有启动付费资源。
 
 ### 已生成结果
@@ -62,11 +62,20 @@
 - 第二组 noise_aug_strength=0.10、motion_bucket_id=180，背景运动更明显，但人物主体动作仍较弱。
 - 第三组使用 768×768 输入、noise_aug_strength=0.20、motion_bucket_id=220，8 帧输出；相邻帧平均像素差约 9.96–21.70，人物头发/局部姿态有轻微变化，仍不是明显的走路、转身等完整动作。
 - 对另一张批量生成角色图也完成 8 帧推理，逐帧平均像素差约 12.3–23.66；需要继续做抽帧人工验收。
-- 已将一段 8 帧、1.14 秒 SVD 动态测试视频和抽帧对比图导入正式项目文件列表，明确标注为动态测试，没有冒充成片镜头。
+- 已将一段 8 帧、1.14 秒 SVD 动态测试视频和抽帧对比图导入正式项目文件列表，明确标注为“动态测试”，没有冒充成片镜头。
 
 ### 当前判断
-- SVD 图片转视频的模型加载、T4 推理、视频导出已打通；但人物动作幅度和角色稳定性还不够，暂不接入正式成片渲染。
+- **SVD 图片转视频的模型加载、T4 推理、视频导出已打通；但人物动作幅度和角色稳定性还不够，暂不接入正式成片渲染。**
 - 下一步尝试针对完整剧情关键帧进行动作提示/输入构图优化，评估人物主体运动幅度，再决定是否扩展成多镜头。
 
 ### 许可提醒
 - 当前 SVD 模型使用 Stability AI Community License：年收入低于 100 万美元的有限商业使用可免版税，但商业用途须向 Stability AI 注册；分发模型材料或衍生作品还需保留许可和署名要求。正式商业部署前需逐项核对许可条款。
+
+## 2026-11-24：SVD motion_bucket_id=180 回传验片结果
+- 已从 Kaggle Output 下载 `/kaggle/working/svd_heroine_motion2.mp4` 到 Box：`/home/user/Downloads/svd_heroine_motion2 (1).mp4`。
+- ffprobe：H.264、1024×576、7fps、8帧、1.142857秒，113,909 bytes。
+- 逐帧联系表视觉检查：大部分帧保持同一姿态，部分帧出现明显模糊/拖影；没有形成清晰连续的人物动作。判定：**未通过剧情动作镜头验收**。
+- 另一个已有输出 `svd_square_motion.mp4` 为同样 8帧、1024×576、7fps、161,689 bytes；对应 `svd_square_contact.png` 的 8帧联系表几乎完全静止，仅有微小形变，亦不通过。
+- 结论：当前 SVD 在本角色图与免费 T4 设置下能生成视频容器和少量帧变化，但无法提供可用动作。暂不接入正式成片链路，不再用放大 motion_bucket 的方式盲目堆参数。
+- 下一步改用动作可控、以姿态/骨架/参考帧驱动的开源视频方案做小样验证；优先在现有 T4 session 可承受范围内测试，不新增付费资源。
+[exit status 0]
