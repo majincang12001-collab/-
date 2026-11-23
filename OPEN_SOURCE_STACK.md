@@ -24,3 +24,12 @@
 - Project-scoped production metadata API: GET/POST /api/production stores story text, character records and storyboard draft rows as JSON under data/production/.
 - Workbench has a basic paragraph-to-shot splitter for manual review. It is deterministic text segmentation, not an LLM screenplay writer; do not label it AI script generation.
 - Browser workflow exercised end-to-end: select project, paste sample, split into two draft shots, save successfully. Temporary test content was cleared afterwards.
+
+
+## 2026-11-23：IP-Adapter 首轮实测
+- Kaggle 免费会话检测到 CUDA=True、2×Tesla T4；工作盘当时剩余 12.11GB。
+- 本地缓存已包含 `Yntec/AnythingV5` SD1.5 fp16 Diffusers 模型和 `h94/IP-Adapter` 的 SD15 Light 权重及 image encoder。
+- `variant="fp16"` 加载底模成功；禁用 attention slicing 后，`load_ip_adapter` 成功。
+- 同一参考图已生成正面、侧面、全身三张 512×512 测试图及对照图。初步链路通过，但身份一致性仍需改进，尚不能称为生产级角色锁定。
+- 可复用脚本：`kaggle/ipadapter_character_test.py`；清理输出后的实验 Notebook：`kaggle/notebook57e8a33be4.ipynb`。
+[exit status 0]
