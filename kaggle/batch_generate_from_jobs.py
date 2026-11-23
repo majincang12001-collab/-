@@ -8,6 +8,15 @@ Run: MAX_SHOTS=1 python kaggle/batch_generate_from_jobs.py
 """
 from pathlib import Path
 import argparse, glob, json, os, shutil, time, gc
+
+# Keep large model caches off Kaggle's 20GB persistent working volume.
+# /kaggle/tmp is high-capacity scratch space and is cleared with the session.
+MODEL_CACHE = Path(os.environ.get('MANGA_MODEL_CACHE', '/kaggle/tmp/hf_cache'))
+MODEL_CACHE.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault('HF_HOME', str(MODEL_CACHE))
+os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(MODEL_CACHE / 'hub'))
+os.environ.setdefault('TRANSFORMERS_CACHE', str(MODEL_CACHE / 'hub'))
+
 import torch
 from PIL import Image
 from diffusers import StableDiffusionPipeline
@@ -16,7 +25,9 @@ ROOT = Path('/kaggle/working')
 JOBS = ROOT / 'manga-generation-jobs.json'
 REFERENCE = Path(os.environ.get('HEROINE_REFERENCE', str(ROOT / 'character_reference.png')))
 OUT = ROOT / 'manga_keyframes'
-HF_HOME = ROOT / 'hf_cache'
+HF_HOME = Path(os.environ.get('MANGA_MODEL_CACHE', '/kaggle/tmp/hf_cache'))
+if not HF_HOME.exists() and (ROOT / 'hf_cache').exists():
+    HF_HOME = ROOT / 'hf_cache'  # compatibility with older notebook sessions
 
 
 def atomic_json(path: Path, value):
