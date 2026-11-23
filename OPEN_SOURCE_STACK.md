@@ -32,10 +32,11 @@
 - `variant="fp16"` 加载底模成功；禁用 attention slicing 后，`load_ip_adapter` 成功。
 - 同一参考图已生成正面、侧面、全身三张 512×512 测试图及对照图。初步链路通过，但身份一致性仍需改进，尚不能称为生产级角色锁定。
 - 可复用脚本：`kaggle/ipadapter_character_test.py`；清理输出后的实验 Notebook：`kaggle/notebook57e8a33be4.ipynb`。
-[exit status 0]
 
-## 2026-11-24：动态分镜 MP4 后期
-- Box 控制端安装 FFmpeg、eSpeak NG 普通话 voice、Pillow 与 Noto CJK。
-- 新增 `render_episode.py`：读取已保存分镜，匹配项目上传的 `shot_0001.png` 等关键帧；缺图时生成明确标记的文字占位卡；对静态画面添加轻微推近，合成普通话旁白、SRT 字幕与 MP4。
-- 新增后台渲染接口与工作台按钮，完成一次真实 MP4 渲染测试（6.473 秒，约 1.1 MB）。样片已归档到测试项目。
-- 该结果是 animatic，不是 AI 生成真实人物动作视频。下一阶段需接入 AnimateDiff/SVD 并实测。
+
+## 2026-11-24：真实关键帧接入 MP4
+- 在 Kaggle 免费 2×Tesla T4 会话中，使用缓存的 AnythingV5 fp16 + IP-Adapter SD15 Light 和主角参考图，单张生成 `shot_0001.png`（512×512，约 5.2 秒）。
+- 该真实关键帧归档到 `AI漫剧首次出图测试` 项目，并命名为 `shot_0001.png`。
+- 工作台渲染器自动匹配该关键帧，生成 7.24 秒 MP4（2,659,078 bytes），包含普通话旁白和中文字幕；抽帧已确认画面来自真实动漫图，而非占位卡。
+- 批量 worker 脚本仍待完整执行验证；当前不是 AI 视频模型动作生成。
+[exit status 0]
