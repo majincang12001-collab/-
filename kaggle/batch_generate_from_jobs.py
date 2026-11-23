@@ -146,4 +146,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-[exit status 0]
