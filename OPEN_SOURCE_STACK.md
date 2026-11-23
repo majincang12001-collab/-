@@ -34,9 +34,8 @@
 - 可复用脚本：`kaggle/ipadapter_character_test.py`；清理输出后的实验 Notebook：`kaggle/notebook57e8a33be4.ipynb`。
 [exit status 0]
 
-## 2026-11-24：结构化分镜与批量出图任务交接
-- 工作台分镜文本改为五栏结构：景别、画面内容、人物动作/表情、对白/旁白、图片提示词；保存时拆成独立 JSON 字段，并支持重新加载。
-- 增加“导出图片生成任务 JSON”，可导出角色资料与分镜任务清单。
-- 新增 `kaggle/batch_generate_from_jobs.py`，复用缓存 AnythingV5 fp16 + IP-Adapter SD15 Light，逐镜生成 512×512 关键帧并写出 manifest。
-- 通过临时测试资料验证结构化分镜 POST 保存和 GET 重新读取成功；测试资料已恢复，没有覆盖正式项目。
-- 这仍是 Kaggle 手动交接，不是工作台自动排队执行；未完成 AI 自动编剧、智能语义分镜、视频生成、配音与 MP4 合成。
+## 2026-11-24：动态分镜 MP4 后期
+- Box 控制端安装 FFmpeg、eSpeak NG 普通话 voice、Pillow 与 Noto CJK。
+- 新增 `render_episode.py`：读取已保存分镜，匹配项目上传的 `shot_0001.png` 等关键帧；缺图时生成明确标记的文字占位卡；对静态画面添加轻微推近，合成普通话旁白、SRT 字幕与 MP4。
+- 新增后台渲染接口与工作台按钮，完成一次真实 MP4 渲染测试（6.473 秒，约 1.1 MB）。样片已归档到测试项目。
+- 该结果是 animatic，不是 AI 生成真实人物动作视频。下一阶段需接入 AnimateDiff/SVD 并实测。
