@@ -35,8 +35,9 @@ footer{text-align:center;color:#94a3b8;font-size:12px;padding:25px}
 <select id="productionProject" style="width:100%;padding:10px;border:1px solid #d7deea;border-radius:10px;margin:6px 0"><option value="">请选择项目</option></select>
 <label class="muted">故事原文 / 梗概</label><textarea id="storyText" style="min-height:130px" placeholder="粘贴故事梗概或章节内容"></textarea>
 <div class="row" style="margin-top:8px"><button type="button" class="secondary" id="splitStory">按段落拆分镜头（基础版）</button><span class="muted">每段先生成一个待审核镜头，不调用付费 AI</span></div>
-<label class="muted">分镜草稿（每行一个镜头，可手动修改）</label>
-<textarea id="storyboardText" style="min-height:120px" placeholder="先粘贴故事，再点击按段落拆分镜头"></textarea>
+<label class="muted">结构化分镜（每行一个镜头，使用“｜”分隔五栏，可直接修改）</label>
+<p class="muted">格式：景别｜画面内容｜人物动作/表情｜对白/旁白｜图片生成提示词。保存后会拆成独立字段，后续可直接交给出图引擎。</p>
+<textarea id="storyboardText" style="min-height:190px" placeholder="中景｜月色下的古城街道｜林月停下脚步，警惕地环顾四周｜旁白：夜色渐深｜anime fantasy, ancient Chinese city at night, cinematic medium shot"></textarea>
 <label class="muted">人物设定（每行一个：姓名｜年龄｜外貌｜服装｜性格）</label>
 <textarea id="characterText" placeholder="林月｜19岁｜黑色长发、琥珀色眼睛｜蓝银色长袍｜冷静坚韧"></textarea>
 <div class="row"><button id="saveProduction">保存制作资料</button><span id="productionStatus" class="muted"></span></div></section>
@@ -55,15 +56,19 @@ $('#create').onclick=async()=>{const name=$('#name').value.trim();if(!name){aler
 $('#upload').onclick=async()=>{const files=[...$('#file').files],pid=$('#projectSelect').value;if(!pid){alert('请先选择项目');return}if(!files.length){alert('请先选择文件');return}for(const f of files){$('#files').textContent='正在上传：'+f.name;try{await api('/api/upload?project_id='+encodeURIComponent(pid)+'&filename='+encodeURIComponent(f.name),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:f})}catch(e){alert(f.name+' 上传失败：'+e.message);return}}$('#files').textContent='上传完成：'+files.length+' 个文件';$('#file').value='';await render()};
 
 async function loadProductionList(){const el=document.querySelector('#productionProject');if(!el)return;el.innerHTML='<option value="">请选择项目</option>'+projects.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')}
-document.querySelector('#productionProject')?.addEventListener('change',async e=>{const id=e.target.value;if(!id)return;try{const j=await api('/api/production?project_id='+encodeURIComponent(id));document.querySelector('#storyText').value=j.production.story||'';document.querySelector('#characterText').value=(j.production.characters||[]).map(c=>[c.name,c.age,c.appearance,c.costume,c.personality].join('｜')).join('\n');document.querySelector('#productionStatus').textContent='资料已加载'}catch(err){document.querySelector('#productionStatus').textContent=err.message}});
+document.querySelector('#productionProject')?.addEventListener('change',async e=>{const id=e.target.value;if(!id)return;try{const j=await api('/api/production?project_id='+encodeURIComponent(id));document.querySelector('#storyText').value=j.production.story||'';document.querySelector('#characterText').value=(j.production.characters||[]).map(c=>[c.name,c.age,c.appearance,c.costume,c.personality].join('｜')).join('\n');document.querySelector('#storyboardText').value=(j.production.storyboard||[]).map(sh=>[sh.shot_type||'中景',sh.visual||sh.description||'',sh.action||'',sh.dialogue||'',sh.prompt||''].join('｜')).join('\n');document.querySelector('#productionStatus').textContent='资料已加载：'+(j.production.storyboard||[]).length+' 条分镜'}catch(err){document.querySelector('#productionStatus').textContent=err.message}});
 
+function splitSentences(text){return (text.match(/[^。！？!?；;]+[。！？!?；;]?/g)||[text]).map(x=>x.trim()).filter(Boolean)}
+function shotFields(line){const a=line.split(/[｜|]/).map(x=>x.trim());return {shot_type:a[0]||'中景',visual:a[1]||'',action:a[2]||'',dialogue:a[3]||'',prompt:a[4]||''}}
+function shotLine(s){return [s.shot_type||'中景',s.visual||'',s.action||'',s.dialogue||'',s.prompt||''].join('｜')}
 document.querySelector('#splitStory')?.addEventListener('click',()=>{
  const raw=document.querySelector('#storyText').value.trim();
  if(!raw){alert('请先填写故事原文');return}
- const chunks=raw.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
- const shots=chunks.flatMap(x=>x.length>360?(x.match(/.{1,300}(?:[。！？!?]|$)/g)||[x]):[x]);
- document.querySelector('#storyboardText').value=shots.slice(0,1000).map((x,i)=>(i+1)+'. '+x.trim()).join('\n');
- document.querySelector('#productionStatus').textContent='已拆出 '+Math.min(shots.length,1000)+' 个待审核镜头（基础规则版）';
+ const paragraphs=raw.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
+ const chunks=paragraphs.flatMap(p=>p.length>420?splitSentences(p):[p]);
+ const shots=chunks.slice(0,1000).map((text,i)=>({shot_type:i===0?'远景':'中景',visual:text,action:'待补充：根据剧情补充人物动作与表情',dialogue:'待提取：补充对白或旁白',prompt:'待生成：补充人物外貌、场景、构图、光线与画风'}));
+ document.querySelector('#storyboardText').value=shots.map(shotLine).join('\n');
+ document.querySelector('#productionStatus').textContent='已生成 '+shots.length+' 条结构化分镜草稿；这是文本拆分，动作、对白和画面提示词仍需审核补全';
 });
 document.querySelector('#saveProduction')?.addEventListener('click',async()=>{
  const id=document.querySelector('#productionProject').value;
@@ -72,9 +77,9 @@ document.querySelector('#saveProduction')?.addEventListener('click',async()=>{
   const a=line.split(/[｜|]/);
   return {name:a[0]||'',age:a[1]||'',appearance:a[2]||'',costume:a[3]||'',personality:a[4]||''};
  });
- const storyboard=document.querySelector('#storyboardText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map((text,i)=>({
-  id:i+1,description:text.replace(/^\d+[.、）)]\s*/,''),status:'draft'
- }));
+ const storyboard=document.querySelector('#storyboardText').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,1000).map((line,i)=>{
+  const f=shotFields(line);return {id:i+1,shot_type:f.shot_type,visual:f.visual,action:f.action,dialogue:f.dialogue,prompt:f.prompt,description:f.visual,status:'draft'};
+ });
  try{
   await api('/api/production',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_id:id,story:document.querySelector('#storyText').value,characters:chars,storyboard})});
   document.querySelector('#productionStatus').textContent='保存成功 · '+chars.length+' 个人物设定 · '+storyboard.length+' 个分镜';
