@@ -15,7 +15,7 @@ from diffusers import StableDiffusionPipeline
 ROOT = Path('/kaggle/working')
 JOBS = ROOT / 'manga-generation-jobs.json'
 REFERENCE = Path(os.environ.get('HEROINE_REFERENCE', str(ROOT / 'character_reference.png')))
-OUT = ROOT / 'manga_keyframes'
+OUT = Path(os.environ.get('MANGA_OUTPUT_DIR', str(ROOT / 'manga_keyframes')))
 HF_HOME = Path(os.environ.get('MANGA_MODEL_CACHE', '/kaggle/tmp/hf_cache'))
 if not HF_HOME.exists() and (ROOT / 'hf_cache').exists():
     HF_HOME = ROOT / 'hf_cache'
