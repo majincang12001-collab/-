@@ -21,7 +21,7 @@ Kaggle 的 Notebook Quick Save 可以把当前 `/kaggle/working` 输出保存为
 
 ### 模型缓存归档操作
 1. 免费 GPU/CPU 会话中先完成模型下载和校验，确保 `AnythingV5` 与 `IP-Adapter` 两个 snapshot 都存在于 `/kaggle/tmp/hf_cache`。
-2. 执行 `python /kaggle/working/persist_model_cache.py pack`，将完整 Hugging Face cache 打包为 `/kaggle/working/manga-model-cache.tar.gz`。脚本会检查两个必需模型目录、归档目录结构和 18 GiB 安全上限，不覆盖旧归档。
+2. 执行 `python /kaggle/working/persist_model_cache.py pack`，将完整 Hugging Face cache 打包为 `/kaggle/working/manga-model-cache.tar.gz`。脚本会检查两个必需模型目录、生成逐文件 SHA-256 清单、打包后校验归档内容，并限制在 18 GiB 安全上限。
 3. 在 Kaggle 的 Save Version → Quick Save → Advanced Settings 中选择 “Save output for this version”。不要选 Save & Run All，以免整本历史 Notebook 重跑并消耗 GPU。
 4. 后续会话在 Input → Add Input → Your Work → Notebook 中挂载保存输出；归档路径为 `/kaggle/input/notebooks/<owner>/<notebook-slug>/manga-model-cache.tar.gz`，再运行 `python persist_model_cache.py restore --archive <输入目录>/manga-model-cache.tar.gz --dest /kaggle/tmp/hf_cache`。
 5. 恢复后运行 worker；`MANGA_MODEL_CACHE=/kaggle/tmp/hf_cache`。模型归档只保存模型权重，不包含 API key、访问口令或项目私人资料。
