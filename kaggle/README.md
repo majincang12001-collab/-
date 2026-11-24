@@ -35,3 +35,5 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 - Worker 现在在导入 PyTorch 前默认运行 `nvidia-smi`，选择空闲显存最多的物理 GPU；可用 `MANGA_GPU_INDEX=0` 等变量手动覆盖，若外部已设置 `CUDA_VISIBLE_DEVICES` 则尊重现有设置。已通过语法检查；需要下次 Kaggle GPU 会话实测确认。
 
 - 2026-11-24 face-crop A/B 首轮实测：768×432 成功生成，但画面仍是近景。日志确认原始提示词长达约300个 CLIP tokens，SD1.5 的 CLIP 仅接受77 tokens，后半段构图要求被截断。已调整为先放景别/场景提示，再按 tokenizer 预算追加身份和细节；脸部裁剪进一步收紧到归一化框 (0.25,0.05,0.75,0.55)。下一轮降低 IP-Adapter scale 至0.15验证；此前近景结果不作为远景通过样本。
+
+- 2026-11-24 第二轮远景实测通过：发现并修复 CLIP 77-token 截断，提示词按优先级从景别/场景开始构建并由 tokenizer 限制在75 tokens内；参考裁剪收紧为 (0.25,0.05,0.75,0.55)，IP-Adapter scale 0.15。自动选择 GPU 1（14,912 MiB free），768×432、18 steps，成功生成 528,355-byte PNG。视觉检查已从近景改善为全身远景，建筑环境可见；古城灯笼街道细节仍未完全符合 prompt。输出已登记正式项目。此为单镜头构图测试，不代表角色跨镜头一致性或动作视频通过。
