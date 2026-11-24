@@ -31,3 +31,5 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 - 原角色参考图为 512×512 头肩近景，直接作为 IP-Adapter 输入时会把景别偏向人像。
 - Worker 新增可选环境变量 `MANGA_REFERENCE_CROP=face`：将输入参考图裁剪到归一化框 (0.20, 0.10, 0.80, 0.72)，保留脸部、发型和头饰，减少肩部/胸像构图特征。
 - 默认 `none` 保持旧行为；该模式已通过 Python 语法检查，但仍需在 Kaggle GPU 上与原始参考图做 A/B 生成对照，不能视为人物一致性或远景控制已验证。
+
+- Worker 现在在导入 PyTorch 前默认运行 `nvidia-smi`，选择空闲显存最多的物理 GPU；可用 `MANGA_GPU_INDEX=0` 等变量手动覆盖，若外部已设置 `CUDA_VISIBLE_DEVICES` 则尊重现有设置。已通过语法检查；需要下次 Kaggle GPU 会话实测确认。
