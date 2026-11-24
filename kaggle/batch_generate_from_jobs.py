@@ -98,12 +98,12 @@ def main():
     crop_mode = os.environ.get('MANGA_REFERENCE_CROP', 'none').lower()
     if crop_mode == 'face':
         w, h = ref.size
-        box = (round(w * 0.20), round(h * 0.10), round(w * 0.80), round(h * 0.72))
+        box = (round(w * 0.25), round(h * 0.05), round(w * 0.75), round(h * 0.55))
         ref = ref.crop(box)
     elif crop_mode not in ('none', ''):
         raise ValueError('MANGA_REFERENCE_CROP must be none or face')
     character_text = '; '.join(
-        ' '.join(str(c.get(k, '')) for k in ('name', 'age', 'appearance', 'costume', 'personality'))
+        ' '.join(str(c.get(k, '')) for k in ('appearance', 'costume'))
         for c in characters
     )
     print('GPU_SELECTION', GPU_SELECTION, 'GPU', torch.cuda.get_device_name(0), 'GPU_COUNT', torch.cuda.device_count(),
@@ -152,12 +152,24 @@ def main():
             camera = 'medium shot, waist-up character, clear readable background environment'
         else:
             camera = 'close-up portrait, clean facial features'
-        prompt = ', '.join(x for x in [
+        # CLIP's SD1.5 text encoder accepts only 77 tokens. Put camera and
+        # scene-composition instructions first, then add identity/style details
+        # only while they fit; never let long Chinese prose push the wide-shot
+        # instruction beyond CLIP's truncation boundary.
+        prompt_parts = [
+            camera, shot.get('prompt', ''),
+            'one heroine only, distant camera, environment dominant',
             data.get('style', 'Chinese anime donghua, cinematic manhua'),
-            shot.get('visual', ''), shot.get('action', ''), camera,
-            'one heroine only', character_text, shot.get('prompt', ''),
-            'coherent costume design, same heroine identity, environment clearly visible, detailed clean composition'
-        ] if x)
+            character_text, shot.get('visual', ''), shot.get('action', ''),
+            'coherent costume design, detailed clean composition'
+        ]
+        prompt_parts = [str(x).strip() for x in prompt_parts if str(x).strip()]
+        chosen = []
+        for part in prompt_parts:
+            candidate = ', '.join(chosen + [part])
+            if len(pipe.tokenizer.encode(candidate)) <= 75:
+                chosen.append(part)
+        prompt = ', '.join(chosen)
         seed = int(data.get('seed', 20261124)) + sid
         generator = torch.Generator(device='cuda').manual_seed(seed)
         t0 = time.time()
