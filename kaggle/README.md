@@ -16,24 +16,13 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 - 工作台的“生成动态分镜预览 MP4”按钮会后台启动任务并在完成后下载视频。
 - 这是动态分镜/animatic，不等于 AnimateDiff、SVD 等模型生成的真实人物动作视频。语音目前为离线合成测试音色。
 
-## 已验证的免费双 T4 图片生成配置（2026-11-24）
-- Kaggle 双 T4 是两张独立显卡，不能把显存相加使用。
-- 实测某次会话 GPU 0 仅余约 4.1 GiB，而 GPU 1 余约 14.8 GiB；默认 `cuda:0` 的横屏生成发生 OOM。
-- 将空闲物理卡映射为进程内唯一可见卡后，768×432 单镜头生成通过：
-  `CUDA_VISIBLE_DEVICES=1 MANGA_WIDTH=768 MANGA_HEIGHT=432 MANGA_IP_ADAPTER_SCALE=0.45 MANGA_STEPS=18 python batch_generate_from_jobs.py --max-shots 1`
-- 实测产物：`manga_keyframes_landscape/shot_0001.png`，768×432，574,067 bytes；worker 报告单镜头约 6.4 秒。
-- 这是单镜头显存/尺寸验证，不代表人物一致性或画面内容验收通过。生成前仍须查看 `nvidia-smi`，确认被选中的物理 GPU 有足够空闲显存；不要并发运行 MimicMotion 和图片生成。
-- Kaggle 临时会话及 `/kaggle/tmp` 缓存并非永久存储；每次会话结束前需导出并备份关键帧与 manifest。
+## 模型缓存持久化（新增，尚待 Kaggle UI 实测）
+Kaggle 官方 Notebook 文档说明：Notebook 版本最多可保存 20 GB 的 `/kaggle/working` 输出，并可在后续 Notebook 中通过 Add Input 复用。`/kaggle/tmp` 是临时 scratch，不能作为持久缓存。
 
-- 后续横屏构图复核：把提示词强化为远景/环境占主导，并将 IP-Adapter scale 降至 0.30 后，768×432 仍生成明显人物近景；因此远景构图验收未通过。参考图本身是近景，当前 IP-Adapter 对景别控制仍不可靠。已将 Kaggle jobs JSON 恢复为原始“中景”测试配置；该远景测试图仅作为失败样本留档，不进入正式镜头。
+1. 免费 GPU/CPU 会话中先完成模型下载和校验，确保 `AnythingV5` 与 `IP-Adapter` 两个 snapshot 都存在于 `/kaggle/tmp/hf_cache`。
+2. 执行 `python /kaggle/working/persist_model_cache.py pack`，将完整 Hugging Face cache 打包为 `/kaggle/working/manga-model-cache.tar.gz`。脚本会检查两个必需模型目录、归档目录结构和 18 GiB 安全上限，不覆盖旧归档。
+3. 在 Kaggle 的 Save Version → Quick Save → Advanced Settings 中启用保存输出文件；不要选 Save & Run All，以免整本历史 Notebook 重跑并消耗 GPU。
+4. 后续会话在 Input → Add Input 中挂载该 Notebook 的已保存输出，将归档复制/读取到工作目录，再运行 `python persist_model_cache.py restore --archive <输入目录>/manga-model-cache.tar.gz --dest /kaggle/tmp/hf_cache`。
+5. 恢复后运行 worker；`MANGA_MODEL_CACHE=/kaggle/tmp/hf_cache`。模型归档只保存模型权重，不包含 API key、访问口令或项目私人资料。
 
-## 参考图裁剪模式（2026-11-24）
-- 原角色参考图为 512×512 头肩近景，直接作为 IP-Adapter 输入时会把景别偏向人像。
-- Worker 新增可选环境变量 `MANGA_REFERENCE_CROP=face`：将输入参考图裁剪到归一化框 (0.20, 0.10, 0.80, 0.72)，保留脸部、发型和头饰，减少肩部/胸像构图特征。
-- 默认 `none` 保持旧行为；该模式已通过 Python 语法检查，但仍需在 Kaggle GPU 上与原始参考图做 A/B 生成对照，不能视为人物一致性或远景控制已验证。
-
-- Worker 现在在导入 PyTorch 前默认运行 `nvidia-smi`，选择空闲显存最多的物理 GPU；可用 `MANGA_GPU_INDEX=0` 等变量手动覆盖，若外部已设置 `CUDA_VISIBLE_DEVICES` 则尊重现有设置。已通过语法检查；需要下次 Kaggle GPU 会话实测确认。
-
-- 2026-11-24 face-crop A/B 首轮实测：768×432 成功生成，但画面仍是近景。日志确认原始提示词长达约300个 CLIP tokens，SD1.5 的 CLIP 仅接受77 tokens，后半段构图要求被截断。已调整为先放景别/场景提示，再按 tokenizer 预算追加身份和细节；脸部裁剪进一步收紧到归一化框 (0.25,0.05,0.75,0.55)。下一轮降低 IP-Adapter scale 至0.15验证；此前近景结果不作为远景通过样本。
-
-- 2026-11-24 第二轮远景实测通过：发现并修复 CLIP 77-token 截断，提示词按优先级从景别/场景开始构建并由 tokenizer 限制在75 tokens内；参考裁剪收紧为 (0.25,0.05,0.75,0.55)，IP-Adapter scale 0.15。自动选择 GPU 1（14,912 MiB free），768×432、18 steps，成功生成 528,355-byte PNG。视觉检查已从近景改善为全身远景，建筑环境可见；古城灯笼街道细节仍未完全符合 prompt。输出已登记正式项目。此为单镜头构图测试，不代表角色跨镜头一致性或动作视频通过。
+该方案利用 Kaggle 官方支持的 Notebook 输出复用能力；本项目尚未在真实 Kaggle UI 完成 Quick Save、Add Input 和恢复验证，因此目前是待验证的持久化方案，不应宣称已完成。
