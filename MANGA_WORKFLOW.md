@@ -11,12 +11,18 @@
 
 ## B. 生成每个镜头的动漫关键帧（Kaggle 免费 GPU，当前手动交接）
 1. 点击“导出图片生成任务 JSON”，下载 `manga-generation-jobs.json`。
-2. 在 Kaggle Notebook 的 `/kaggle/working` 上传该 JSON，以及选定的角色参考图并命名为 `character_reference.png`。
-3. 确认 Kaggle 免费 GPU Session 已开启，且 `/kaggle/working/hf_cache` 内已有 AnythingV5 fp16 和 IP-Adapter SD15 Light 缓存。
-4. 运行 `kaggle/batch_generate_from_jobs.py`。它按分镜逐镜生成 512×512 图片，命名为 `shot_0001.png`、`shot_0002.png`，同时生成 `manga_keyframes.zip`。
-5. 下载 ZIP，解压后把 `shot_0001.png` 等图片上传到工作台同一个项目。每张图应按镜头编号命名，才能自动匹配。
+2. 在 Kaggle Notebook 的 `/kaggle/working` 上传任务 JSON、角色参考图（命名 `character_reference.png`）和 `kaggle/batch_generate_from_jobs.py`。
+3. 模型缓存必须已经存在：AnythingV5 fp16、IP-Adapter SD15 Light 和 image encoder。当前默认缓存位置 `/kaggle/tmp/hf_cache`，这是临时盘，不保证跨 Session 保留。
+4. 选择 Kaggle 免费 GPU，运行前先用 `nvidia-smi` 确认设备。Worker 会在导入 PyTorch 前自动选择空闲显存最多的物理 GPU；也可用 `MANGA_GPU_INDEX=0` 指定。
+5. 首次建议只跑一镜：`MANGA_REFERENCE_CROP=face MANGA_WIDTH=768 MANGA_HEIGHT=432 MANGA_IP_ADAPTER_SCALE=0.15 MANGA_STEPS=18 python batch_generate_from_jobs.py --max-shots 1`。
+6. 输出位于 `manga_keyframes/`，包括 `shot_0001.png` 和 `manifest.json`；确认图片尺寸、文件大小和画面内容后，再下载并上传到工作台对应项目。
 
-注意：已用 Notebook 交互代码真实生成一张 512×512 关键帧（约 5.2 秒）；批量 worker 已增加模型缓存路径检查和 `MAX_SHOTS` 限制，语法检查通过，但尚未在 Kaggle 实机跑通。首次运行只跑 1 条分镜。当前 512×512，不是 1080P。人物参考图条件控制不保证每镜完全一致。
+### 当前实测边界
+- 768×432 横屏单镜头生成已实测成功；脸部参考裁剪 + IP-Adapter scale 0.15 + 优先级提示词控制，使人物从近景改善为全身远景，建筑背景可见。
+- 发现并修复 SD1.5 CLIP 77-token 截断：提示词按景别、场景、动作、风格和人物信息顺序填充，超长段落会被截短而非整段丢弃。新增 3 项纯单元测试。
+- 场景细节仍未完全遵循描述；人物跨镜头身份一致性仍未通过系统验收。768×432 也不是 1080P。
+- Kaggle Session 关闭后，`/kaggle/tmp` 缓存可能清空；模型持久化 Dataset 尚未完成。不要假设模型已永久保存。
+- 不要使用 Run All；不要启动付费 GPU、充值或付费 API。每次只运行指定 Worker cell/Console 命令。
 
 ## C. 合成动态分镜预览 MP4（已完成真实测试）
 1. 确认分镜已经保存。
@@ -73,40 +79,14 @@
 - 商业使用前必须核对 Stability AI license；模型卡说明当前模型 intended for research purposes。
 
 ## 2026-11-24 SVD 图片转视频实测（已跑通推理，动作质量待提升）
-- StableVideoDiffusionPipeline fp16 组件在 Kaggle 免费双 T4 成功加载；14 帧首次 OOM，启用 unet.enable_forward_chunking() 后改为 8 帧成功。
+- `StableVideoDiffusionPipeline` fp16 组件在 Kaggle 免费双 T4 成功加载；14 帧首次 OOM，启用 `unet.enable_forward_chunking()` 后改为 8 帧成功。
 - 输出 1024×576、7 fps、8 帧、1.14 秒 H.264 MP4；低 noise 版本人物近乎静止，提高到 noise_aug_strength=0.20、motion_bucket_id=220 后出现轻微头发/姿态变化，但还没有明显走路或转身动作。
 - 已将 8 帧动态测试视频和抽帧对比图登记到正式项目文件列表，标记为测试素材，尚未进入正式成片。
-- 详细记录见 ANIMATEDIFF_TEST_REPORT.md。SVD 使用 Stability AI Community License，商业用途需注册并遵守收入门槛及署名条款。
+- 详细记录见 `ANIMATEDIFF_TEST_REPORT.md`。SVD 使用 Stability AI Community License，商业用途需注册并遵守收入门槛及署名条款。
 
 
-## 2026-11-24 Kaggle 磁盘空间迁移与 Worker 复测
-
-- 实测 `/kaggle/working` 为独立 20GB 卷，迁移前仅剩约 3.02GB；`/kaggle/tmp` 位于另一临时文件系统，实测可用约 2.5TB（容量为会话环境报告值，不是永久配额承诺）。
-- 将 Hugging Face 模型缓存从 `/kaggle/working/hf_cache` 迁移到 `/kaggle/tmp/hf_cache`，并在原路径建立符号链接，保持旧模型路径兼容；AnythingV5 与 IP-Adapter 快照可通过旧路径访问。
-- 将 MimicMotion 权重目录从 `/kaggle/working/MimicMotion/models` 迁移到 `/kaggle/tmp/MimicMotion_models`，原路径建立符号链接，MimicMotion 相对权重路径保持可用。
-- 迁移后 `/kaggle/working` 可用空间实测提升到约 15.71GB；`/kaggle/tmp` 仍有约 2.5TB 系统报告可用空间。
-- 新增 `kaggle/prepare_kaggle_runtime.py`，用于新会话自动把现有模型缓存迁移到临时盘并设置 HF 缓存环境变量。
-- 更新 `kaggle/batch_generate_from_jobs.py`，默认将模型缓存放到 `/kaggle/tmp/hf_cache`，支持 `MANGA_MODEL_CACHE` 覆盖。
-- 实测更新后的 Worker 从临时盘读取 AnythingV5 fp16 + IP-Adapter，成功生成 1 张 512×512 PNG；日志显示单镜头耗时约 9 秒，输出 manifest 与 ZIP。
-- 再次从迁移后的 MimicMotion 权重目录启动 16 帧测试，模型加载成功并生成 MP4（448×256，15fps，16帧，约 1.07 秒，约 94.5KB）。这证明迁移没有破坏模型读取；该短片仍需视觉质量验收，不能据此宣称动作镜头合格。
-- 重要限制：`/kaggle/tmp` 是临时空间，会话结束后可能清空。当前 Notebook 没有可用 Kaggle API token（仅检查是否存在，不读取或暴露凭据），因此尚未自动创建持久 Kaggle Dataset。下次会话需要重新下载模型到临时盘，或在用户账号可用的 Kaggle Dataset 输入挂载后从 `/kaggle/input` 读取。没有清理或删除原模型内容；本次迁移为移动并保留符号链接。
-
-
-## 2026-11-24 Kaggle 两镜头批量 Worker 实机验收
-
-- 在当前免费 Kaggle Draft Session 中确认模型缓存与 MimicMotion 权重符号链接均有效，工作盘剩余约 15.71GB。
-- 使用 `MANGA_MODEL_CACHE=/kaggle/tmp/hf_cache` 启动正式 `batch_generate_from_jobs.py --max-shots 2`，不重新下载模型。
-- Worker 实际完成 2 个镜头，日志结果：`DONE 2 shots; seconds 8.4`。
-- 输出文件：`shot_0001.png`（374,465 bytes）、`shot_0002.png`（397,064 bytes）、`manifest.json`（1,847 bytes）。生成包 `manga_keyframes_two_shots.zip` 为 773,000 bytes。
-- Manifest 中两个镜头状态均为 `done`。这是两镜头批量生成流程的实机验证；图像视觉质量和人物一致性仍需独立验收，不应仅凭生成成功就判定合格。
-- 当前输出包保留在 Kaggle `/kaggle/working`，尚未完成下载回 Box 工作台，因此尚未替换或登记正式项目原画。
-
-
-## 2026-11-24 两镜头批量图像视觉复核与重新合成
-
-- 对已登记的两张批量关键帧进行人工视觉复核：两张均为人物上半身近景，未充分呈现分镜要求的古城城门与灯笼街道；人物面部风格相近，但服装/领口细节不一致。因此批量执行成功不等于分镜遵循或角色一致性达标。
-- 根据复核结果调整 `kaggle/batch_generate_from_jobs.py`：增加可配置的模型缓存、输出目录、IP-Adapter scale、画幅、推理步数；默认 IP-Adapter scale 从 0.75 调整到 0.45，默认 768×432 横屏、22 steps；根据远景/中景/近景自动追加不同构图提示，远景强调环境占画面主体、人物比例较小。
-- 新的构图参数已提交 GitHub（commit `708fdc1725d214d8cc422d2c15c7a3c58b057579`，随后隔离测试输出目录提交 `374ba8b6a935f83759c87ef6407bb78192b2c4fc`）。本轮没有将尚未完成的横屏复测标记为成功。
-- 重新读取 Box 项目已登记的两张批量关键帧，重新合成任务 `batch-recheck-20261124`：14.8 秒，1280×720，H.264 + AAC，4,961,148 bytes。输出已复制并登记为项目文件 `双镜头批量复核预览_14.8秒.mp4`（`b84a61d2aa1c_batch-recheck-20261124.mp4`）。
-- Box 工作台 API health 正常；集成测试 3/3 通过；核心 Python 文件 py_compile 通过；源码备份更新到 `/workspace/backups/manga-console-source-20261124.tar.gz`（约472KB，不包含私人项目数据和访问密钥）。
-- 下一项待办：使用新版 768×432、较低 IP-Adapter 权重进行单镜头构图复测，确认城门/街道场景是否出现；然后再决定是否批量替换正式关键帧。人物一致性仍需跨镜头定量/视觉验收。
+## 2026-11-24 提示词预算二次修订
+- 远景单镜头已验证成功，但场景细节仍有偏差。复查 Worker 后发现旧逻辑对每个提示词片段采用“整段放入或整段丢弃”，长场景描述可能被整个丢弃。
+- 新增 `build_prompt()`：按景别 → 场景 → 镜头提示 → 动作 → 风格 → 人物信息顺序填充，超长片段按 tokenizer 可用预算截短，目标不超过75 tokens。
+- 新增 `tests/test_prompt_builder.py`，覆盖超长场景截断、优先级顺序和空片段；当前全套6项测试通过。
+- 这次只完成 Box 本地代码与单元测试，尚未在 Kaggle GPU 上复测，不能宣称场景遵循度已改善。
