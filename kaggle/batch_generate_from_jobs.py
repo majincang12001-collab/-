@@ -57,6 +57,29 @@ def atomic_json(path: Path, value):
     tmp.replace(path)
 
 
+def build_prompt(tokenizer, segments, max_tokens=75):
+    """Fit prioritized prompt segments without dropping an overlong scene block."""
+    chosen = []
+    remaining = max_tokens
+    for segment in segments:
+        segment = str(segment or '').strip()
+        if not segment or remaining <= 0:
+            continue
+        prefix = ', ' if chosen else ''
+        prefix_tokens = len(tokenizer.encode(prefix, add_special_tokens=False))
+        available = max(0, remaining - prefix_tokens)
+        if available <= 0:
+            break
+        ids = tokenizer.encode(segment, add_special_tokens=False)
+        if len(ids) > available:
+            segment = tokenizer.decode(ids[:available], skip_special_tokens=True).strip()
+            ids = tokenizer.encode(segment, add_special_tokens=False)
+        if segment and ids:
+            chosen.append(segment)
+            remaining -= prefix_tokens + len(ids)
+    return ', '.join(chosen)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--max-shots', type=int, default=int(os.environ.get('MAX_SHOTS', '3')))
@@ -156,20 +179,16 @@ def main():
         # scene-composition instructions first, then add identity/style details
         # only while they fit; never let long Chinese prose push the wide-shot
         # instruction beyond CLIP's truncation boundary.
-        prompt_parts = [
-            camera, shot.get('prompt', ''),
+        prompt = build_prompt(pipe.tokenizer, [
+            camera,
+            shot.get('visual', ''),
+            shot.get('prompt', ''),
+            shot.get('action', ''),
             'one heroine only, distant camera, environment dominant',
             data.get('style', 'Chinese anime donghua, cinematic manhua'),
-            character_text, shot.get('visual', ''), shot.get('action', ''),
+            character_text,
             'coherent costume design, detailed clean composition'
-        ]
-        prompt_parts = [str(x).strip() for x in prompt_parts if str(x).strip()]
-        chosen = []
-        for part in prompt_parts:
-            candidate = ', '.join(chosen + [part])
-            if len(pipe.tokenizer.encode(candidate)) <= 75:
-                chosen.append(part)
-        prompt = ', '.join(chosen)
+        ], max_tokens=75)
         seed = int(data.get('seed', 20261124)) + sid
         generator = torch.Generator(device='cuda').manual_seed(seed)
         t0 = time.time()
