@@ -16,14 +16,26 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 - 工作台的“生成动态分镜预览 MP4”按钮会后台启动任务并在完成后下载视频。
 - 这是动态分镜/animatic，不等于 AnimateDiff、SVD 等模型生成的真实人物动作视频。语音目前为离线合成测试音色。
 
-## 模型缓存持久化（UI 跨会话探针已验证，真实模型归档待验证）
-Kaggle 的 Notebook Quick Save 可以把当前 `/kaggle/working` 输出保存为该版本的 Output Data，并可通过后续会话的 Input → Add Input 挂载回来。实测过程：创建 40 字节探针文件 `persistence_probe.txt`，选择 Save Version → Quick Save → Advanced Settings → “Save output for this version”；版本成功保存后，在 Add Input → Your Work → Notebook 中添加自己的 Notebook 输出。停止 Draft Session，再重新启动 CPU 会话，读取挂载路径 `/kaggle/input/notebooks/jincangma/notebook57e8a33be4/persistence_probe.txt`，文件存在且内容完全一致（`manga-cache-persistence-probe-2026-11-24`）。整个探针没有启用 GPU。
+## 模型缓存持久化（私有 Kaggle Dataset 已上传并验证挂载）
 
-### 模型缓存归档操作
-1. 免费 GPU/CPU 会话中先完成模型下载和校验，确保 `AnythingV5` 与 `IP-Adapter` 两个 snapshot 都存在于 `/kaggle/tmp/hf_cache`。
-2. 执行 `python /kaggle/working/persist_model_cache.py pack`，将完整 Hugging Face cache 打包为 `/kaggle/working/manga-model-cache.tar.gz`。脚本会检查两个必需模型目录、生成逐文件 SHA-256 清单、打包后校验归档内容，并限制在 18 GiB 安全上限。
-3. 在 Kaggle 的 Save Version → Quick Save → Advanced Settings 中选择 “Save output for this version”。不要选 Save & Run All，以免整本历史 Notebook 重跑并消耗 GPU。
-4. 后续会话在 Input → Add Input → Your Work → Notebook 中挂载保存输出；归档路径为 `/kaggle/input/notebooks/<owner>/<notebook-slug>/manga-model-cache.tar.gz`，再运行 `python persist_model_cache.py restore --archive <输入目录>/manga-model-cache.tar.gz --dest /kaggle/tmp/hf_cache`。
-5. 恢复后运行 worker；`MANGA_MODEL_CACHE=/kaggle/tmp/hf_cache`。模型归档只保存模型权重，不包含 API key、访问口令或项目私人资料。
+**持久化数据集：** https://www.kaggle.com/datasets/jincangma/ai-manga-model-bundle （Private）
+- Version 1：5.32 GB，19 个文件；包含 AnythingV5 SD1.5 fp16、IP-Adapter SD15 Light、Image Encoder 和 `manifest.json`。
+- 上传来源：Kaggle 免费 Notebook Session 中的 `/kaggle/working/manga_model_bundle`，通过 KaggleHub `dataset_upload` 上传；无需在代码中暴露 API Token。
+- 恢复验证：在 Notebook 中执行 `kagglehub.dataset_download('jincangma/ai-manga-model-bundle')`，Kaggle 将 19 个文件挂载到 `/kaggle/input/datasets/jincangma/ai-manga-model-bundle`；实测 `FILES 19`，2,528,373,448 字节的 Image Encoder 权重存在。
+- 将数据集完整复制到 `/kaggle/working/manga_model_bundle` 后，对 manifest 中 18 个文件逐个计算 SHA-256，结果 `BAD []`，全部通过。
+- 数据集页面确认 Private、Version 1、5.32 GB、19 files。模型包不包含 API key、访问口令或项目私人资料。
 
-**验证边界：** Quick Save、Output Data、Add Input、停止会话、重新启动 CPU 会话、读取挂载文件这一整套持久化路径已经真实通过。真实 AnythingV5 + IP-Adapter 多 GB 权重的打包、保存和恢复尚未执行；待下一次有模型缓存的免费会话中完成。
+### 后续 Notebook 会话启动
+1. 将 `prepare_kaggle_runtime.py`、`batch_generate_from_jobs.py` 和 `ipadapter_character_test.py` 放到 `/kaggle/working` 或从项目代码库取用。
+2. 执行 `python /kaggle/working/prepare_kaggle_runtime.py`。脚本通过 KaggleHub 挂载私有 Dataset，检查 `manifest.json` 与 `AnythingV5/model_index.json`；为避免 FUSE 上逐张量随机读取非常缓慢，会把 `AnythingV5` 作为只读链接，把 `IP-Adapter`（含 Image Encoder）复制到 `/kaggle/working/manga_model_bundle`。磁盘空间不足时会报出需要和剩余空间，并保留挂载路径。
+3. `batch_generate_from_jobs.py` 优先从 `MANGA_MODEL_BUNDLE` 或本地 `/kaggle/working/manga_model_bundle` 读取 `AnythingV5/` 与 `IP-Adapter/`，再回退到旧 HF snapshot 目录。无需再次下载模型权重。
+4. 运行前仍须确认免费 GPU Session 已启用、CUDA 可用、参考图和 `manga-generation-jobs.json` 已准备好。
+
+### 真实 GPU 加载与出图验收（2026-11-24）
+- Kaggle 免费 GPU T4 x2 已启用，`torch.cuda.is_available() == True`、`device_count() == 2`。
+- AnythingV5 从私有 Dataset 挂载路径成功加载到 T4，512×512、8 steps GPU 推理成功；输出 `/kaggle/working/base_model_smoke_test.png`，510,632 bytes。
+- 完整复制模型包到 `/kaggle/working/manga_model_bundle` 后，18/18 SHA-256 校验通过。
+- AnythingV5 + IP-Adapter SD15 Light + 2.53GB Image Encoder 从本地 staging 路径完整加载成功；8 steps、512×512 参考图条件推理成功，输出 `/kaggle/working/ipadapter_smoke_test.png`，512,464 bytes。
+- 当前 smoke test 使用程序绘制的测试参考图，证明模型链路和 GPU 推理通了；还不是用户正式角色参考图的跨镜头一致性验收，也不是正式分镜生成。
+
+**验证边界：** 私有 Dataset 上传、19 文件挂载、18 项 SHA-256、底模加载、IP-Adapter 加载和参考图条件出图均已通过。Kaggle Notebook 仍显示 `Failed to save draft.`，因此本次两个 smoke test PNG 仍在当前临时 Session，尚未保存到长期数据集。下一步要把真实角色参考图和一镜头任务接入 worker，验证角色一致性和正式关键帧输出。
