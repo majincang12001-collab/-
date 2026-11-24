@@ -26,3 +26,8 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 - Kaggle 临时会话及 `/kaggle/tmp` 缓存并非永久存储；每次会话结束前需导出并备份关键帧与 manifest。
 
 - 后续横屏构图复核：把提示词强化为远景/环境占主导，并将 IP-Adapter scale 降至 0.30 后，768×432 仍生成明显人物近景；因此远景构图验收未通过。参考图本身是近景，当前 IP-Adapter 对景别控制仍不可靠。已将 Kaggle jobs JSON 恢复为原始“中景”测试配置；该远景测试图仅作为失败样本留档，不进入正式镜头。
+
+## 参考图裁剪模式（2026-11-24）
+- 原角色参考图为 512×512 头肩近景，直接作为 IP-Adapter 输入时会把景别偏向人像。
+- Worker 新增可选环境变量 `MANGA_REFERENCE_CROP=face`：将输入参考图裁剪到归一化框 (0.20, 0.10, 0.80, 0.72)，保留脸部、发型和头饰，减少肩部/胸像构图特征。
+- 默认 `none` 保持旧行为；该模式已通过 Python 语法检查，但仍需在 Kaggle GPU 上与原始参考图做 A/B 生成对照，不能视为人物一致性或远景控制已验证。
