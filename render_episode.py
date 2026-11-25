@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Render a Chinese narrated motion-comic animatic from storyboard stills.
 
-This is an offline MVP renderer: it animates available keyframes with a subtle
-Ken Burns move, creates Mandarin narration with eSpeak NG, writes SRT subtitles,
-and muxes an MP4. It does not claim to synthesize new motion between frames.
+This renderer only edits verified keyframes into an MP4. It never substitutes
+text cards for missing art and never uses robotic fallback TTS. AI video motion
+and a high-quality Mandarin TTS engine must be provided by separate workers.
 """
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -37,13 +37,16 @@ def make_card(path, project, shot, idx):
     d.text((90,620),'AI 漫剧 · 动态分镜预览（尚未生成该镜头原画）',font=small,fill=(140,150,175))
     im.save(path)
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--project-id',required=True); ap.add_argument('--job-id',required=True); a=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument('--project-id',required=True); ap.add_argument('--job-id',required=True); ap.add_argument('--episode-id',default='episode-01'); ap.add_argument('--shot-ids',default=''); a=ap.parse_args()
     pid=a.project_id; job=a.job_id
-    prod=DATA/'production'/f'{pid}.json'; projects=json.loads((DATA/'projects.json').read_text('utf-8'))
+    prod=DATA/'production'/pid/(a.episode_id+'.json'); legacy=DATA/'production'/f'{pid}.json'; prod=prod if prod.exists() else legacy; projects=json.loads((DATA/'projects.json').read_text('utf-8'))
     project=next((x for x in projects if x['id']==pid),None)
     if not project or not prod.exists(): raise SystemExit('Project or production data missing')
     data=json.loads(prod.read_text('utf-8')); shots=data.get('storyboard',[])
-    if not shots: raise SystemExit('No storyboard shots. Add and save at least one shot first.')
+    if a.shot_ids:
+        wanted={int(x) for x in a.shot_ids.split(',') if x.strip()}
+        shots=[x for i,x in enumerate(shots,1) if int(x.get('id',i)) in wanted]
+    if not shots: raise SystemExit('No selected storyboard shots.')
     out=RENDERS/pid/job; out.mkdir(parents=True,exist_ok=True)
     state=RENDERS/pid/f'{job}.json'; state.parent.mkdir(parents=True,exist_ok=True)
     def status(stage,progress,message): state.write_text(json.dumps({'job_id':job,'status':stage,'progress':progress,'message':message,'updated_at':time.time()},ensure_ascii=False,indent=2),'utf-8')
@@ -59,21 +62,18 @@ def main():
             if pattern in nm and Path(nm).suffix.lower() in ('.png','.jpg','.jpeg','.webp'):
                 candidates.append(UPLOADS/meta['stored'])
         if not candidates:
-            for f in UPLOADS.glob(f'{pid}_*'):
+            for f in UPLOADS.rglob(f'*{pattern}*'):
                 if pattern in f.name and f.suffix.lower() in ('.png','.jpg','.jpeg','.webp'): candidates.append(f)
+        if not candidates:
+            raise SystemExit(f'镜头{shot.get("id",idx)}缺少真实关键帧，已停止渲染；不会用文字卡冒充画面。')
         img=out/f'image_{idx:04d}.png'
-        if candidates:
-            Image.open(candidates[0]).convert('RGB').save(img)
-        else:
-            make_card(img,project['name'],shot,idx)
-        speech=str(shot.get('dialogue') or shot.get('narration') or shot.get('visual') or '').strip()
+        Image.open(candidates[0]).convert('RGB').save(img)
+        # Do not use robotic fallback TTS. Until a Mandarin voice engine is configured,
+        # preserve timing with silence and mark the output as narration-pending.
+        speech=str(shot.get('dialogue') or shot.get('narration') or '').strip()
         if speech.startswith('待提取') or speech.startswith('待补充') or speech.startswith('待生成'): speech=''
         wav=out/f'voice_{idx:04d}.wav'
-        if speech:
-            try: run(['espeak-ng','-v','cmn','-s','155','-w',str(wav),speech])
-            except Exception: speech=''
-        if not speech:
-            run(['ffmpeg','-y','-f','lavfi','-i','anullsrc=r=24000:cl=mono','-t','1.0','-c:a','pcm_s16le',str(wav)])
+        run(['ffmpeg','-y','-f','lavfi','-i','anullsrc=r=24000:cl=mono','-t','1.0','-c:a','pcm_s16le',str(wav)])
         ad=duration(wav); clipdur=max(3.5,ad+0.8); frames=max(1,int(clipdur*FPS))
         padded=out/f'voice_padded_{idx:04d}.wav'
         run(['ffmpeg','-y','-i',str(wav),'-af','apad','-t',f'{clipdur:.3f}','-c:a','pcm_s16le',str(padded)])
@@ -98,8 +98,24 @@ def main():
     mp4=out/'episode_preview.mp4'
     vf=f"subtitles=filename='{srt.as_posix()}':force_style='FontName=Noto Sans CJK SC,FontSize=26,Outline=2,Shadow=1,Alignment=2,MarginV=38'"
     run(['ffmpeg','-y','-i',str(silent),'-i',str(audio),'-vf',vf,'-c:v','libx264','-preset','ultrafast','-crf','23','-c:a','aac','-b:a','128k','-shortest','-movflags','+faststart',str(mp4)])
-    (out/'manifest.json').write_text(json.dumps({'project':project['name'],'shots':len(shots),'duration_seconds':round(duration(mp4),2),'video':'episode_preview.mp4','subtitles':'subtitles.srt','narration':'narration.wav','render_mode':'offline_motion_comic_animatic','note':'缺少原画的镜头使用文字占位卡；Ken Burns 动效不等于 AI 生成的真实角色动作。'},ensure_ascii=False,indent=2),'utf-8')
-    status('done',100,'动态分镜预览已完成')
+    (out/'manifest.json').write_text(json.dumps({'project':project['name'],'shots':len(shots),'duration_seconds':round(duration(mp4),2),'video':'episode_preview.mp4','subtitles':'subtitles.srt','narration':'narration.wav','render_mode':'keyframe_motion_edit','note':'仅对真实关键帧做动态剪辑；未接入普通话TTS时不伪造机械配音；Ken Burns 动效不等于 AI 生成的真实角色动作。'},ensure_ascii=False,indent=2),'utf-8')
+    # Mirror deliverables into the isolated project workspace.
+    workspace=DATA/'project_workspaces'/pid/'episodes'/a.episode_id
+    workspace.mkdir(parents=True,exist_ok=True)
+    import shutil
+    shutil.copy2(mp4,workspace/'renders'/f'{job}_keyframe_sample.mp4')
+    shutil.copy2(srt,workspace/'renders'/f'{job}_subtitles.srt')
+    shutil.copy2(out/'manifest.json',workspace/'renders'/f'{job}_manifest.json')
+    # Update the console usage ledger with the completed job.
+    ledger=DATA/'usage'/'ledger.json'
+    if ledger.exists():
+        try:
+            u=json.loads(ledger.read_text('utf-8'))
+            for e in reversed(u.get('events',[])):
+                if e.get('job_id')==job: e['status']='completed'; e['detail']='真实关键帧动态剪辑完成（不是AI图生视频）'; break
+            ledger.write_text(json.dumps(u,ensure_ascii=False,indent=2),'utf-8')
+        except Exception: pass
+    status('done',100,'关键帧动态剪辑已完成；请注意这不是AI图生视频，当前未配置普通话配音引擎')
     print(json.dumps({'job_id':job,'video':str(mp4),'duration':round(duration(mp4),2),'shots':len(shots)},ensure_ascii=False))
 if __name__=='__main__':
     try: main()
@@ -112,4 +128,3 @@ if __name__=='__main__':
             state.write_text(json.dumps({'job_id':a.job_id,'status':'failed','progress':0,'message':str(e)},ensure_ascii=False),'utf-8')
         except Exception: pass
         raise
-[exit status 0]
