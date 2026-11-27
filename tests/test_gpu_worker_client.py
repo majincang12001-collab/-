@@ -36,3 +36,93 @@ class WorkerClientTests(unittest.TestCase):
         with self.assertRaises(GPUWorkerError): ComfyUIWorker('').submit({'x':{}})
 
 if __name__=='__main__': unittest.main()
+
+
+class WorkerReferenceRoutingTests(unittest.TestCase):
+    def test_unreferenced_characters_are_text_only_and_do_not_borrow_other_reference(self):
+        import ast
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / 'kaggle' / 'box_gpu_worker.py').read_text('utf-8')
+        tree = ast.parse(source)
+        names = {'characters_with_references', 'mark_shots_without_character_references'}
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
+        scope = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), '<worker-reference-routing>', 'exec'), scope)
+        job = {
+            'characters': [
+                {'name': '林月', 'reference_file': 'p1_hero.png'},
+                {'name': '黑衣老者'},
+            ],
+            'storyboard': [
+                {'id': 1, 'character': '林月'},
+                {'id': 2, 'character': '黑衣老者'},
+                {'id': 3, 'visual': '古城远景'},
+            ],
+        }
+        referenced = scope['characters_with_references'](job)
+        self.assertEqual([x['name'] for x in referenced], ['林月'])
+        names = scope['mark_shots_without_character_references'](job)
+        self.assertEqual(names, {'林月'})
+        self.assertNotIn('text_only_character', job['storyboard'][0])
+        self.assertTrue(job['storyboard'][1]['text_only_character'])
+        self.assertTrue(job['storyboard'][2]['text_only_character'])
+
+
+    def test_memorial_only_character_reference_is_never_downloaded(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/'kaggle'/'box_gpu_worker.py').read_text('utf-8')
+        tree=ast.parse(source); names={'characters_with_references'}
+        nodes=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names]
+        scope={}; exec(compile(ast.Module(body=nodes,type_ignores=[]),'<worker-memorial-reference>','exec'),scope)
+        job={'characters':[{'name':'韩','reference_file':'han.png'},
+                           {'name':'许清月','reference_file':'xuqingyue.png','visual_lock':'只作为墓碑姓名出现，不生成实体'}]}
+        self.assertEqual([x['name'] for x in scope['characters_with_references'](job)],['韩'])
+
+    def test_multi_character_shot_uses_independent_references_when_all_exist(self):
+        import ast
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / 'kaggle' / 'box_gpu_worker.py').read_text('utf-8')
+        tree = ast.parse(source)
+        names = {'characters_with_references', 'mark_shots_without_character_references'}
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
+        scope = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), '<worker-multi-reference>', 'exec'), scope)
+        job = {'characters': [{'name':'林月','reference_file':'lin.png'}, {'name':'韩渐离','reference_file':'han.png'}],
+               'storyboard':[{'id':1,'character_names':['林月','韩渐离']}]}
+        scope['mark_shots_without_character_references'](job)
+        shot = job['storyboard'][0]
+        self.assertTrue(shot['multi_character_reference'])
+        self.assertNotIn('text_only_character', shot)
+
+    def test_worker_clears_stale_text_only_flag_when_all_multi_refs_exist(self):
+        import ast
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / 'kaggle' / 'box_gpu_worker.py').read_text('utf-8')
+        tree = ast.parse(source)
+        names = {'characters_with_references', 'mark_shots_without_character_references'}
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
+        scope = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), '<worker-stale-flag>', 'exec'), scope)
+        job = {'characters':[{'name':'林月','reference_file':'lin.png'},{'name':'韩渐离','reference_file':'han.png'}],
+               'storyboard':[{'id':1,'character_names':['林月','韩渐离'],'text_only_character':True}]}
+        scope['mark_shots_without_character_references'](job)
+        shot=job['storyboard'][0]
+        self.assertTrue(shot['multi_character_reference'])
+        self.assertNotIn('text_only_character',shot)
+
+    def test_multi_character_shot_missing_one_reference_stays_text_only(self):
+        import ast
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / 'kaggle' / 'box_gpu_worker.py').read_text('utf-8')
+        tree = ast.parse(source)
+        names = {'characters_with_references', 'mark_shots_without_character_references'}
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
+        scope = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), '<worker-multi-reference-missing>', 'exec'), scope)
+        job = {'characters': [{'name':'林月','reference_file':'lin.png'}, {'name':'韩渐离'}],
+               'storyboard':[{'id':1,'character_names':['林月','韩渐离']}]}
+        scope['mark_shots_without_character_references'](job)
+        shot = job['storyboard'][0]
+        self.assertTrue(shot['text_only_character'])
+        self.assertNotIn('multi_character_reference', shot)

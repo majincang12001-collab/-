@@ -6,11 +6,21 @@ import server
 class NvidiaProviderTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # This module may run after API tests that import server.py under a
+        # separate module name. Give this test server an explicit isolated key
+        # rather than inheriting an empty or mutated process-global credential.
+        cls.old_access_key = server.ACCESS_KEY
+        cls.old_valid_access_keys = set(server.VALID_ACCESS_KEYS)
+        server.ACCESS_KEY = 'nvidia-provider-test-key'
+        server.VALID_ACCESS_KEYS = {server.ACCESS_KEY}
         cls.http=ThreadingHTTPServer(('127.0.0.1',0),server.Handler)
         cls.thread=threading.Thread(target=cls.http.serve_forever,daemon=True); cls.thread.start()
         cls.base='http://127.0.0.1:'+str(cls.http.server_port)
     @classmethod
-    def tearDownClass(cls): cls.http.shutdown(); cls.http.server_close()
+    def tearDownClass(cls):
+        cls.http.shutdown(); cls.http.server_close(); cls.thread.join(timeout=2)
+        server.ACCESS_KEY = cls.old_access_key
+        server.VALID_ACCESS_KEYS = cls.old_valid_access_keys
     def req(self,path,body=None):
         data=None if body is None else json.dumps(body).encode()
         req=urllib.request.Request(self.base+path,data=data,headers={'X-Access-Key':server.ACCESS_KEY,'Content-Type':'application/json'})
