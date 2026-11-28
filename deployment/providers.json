@@ -1,0 +1,242 @@
+{
+  "schema_version": 1,
+  "providers": [
+    {
+      "id": "modelscope-hub",
+      "name": "ModelScope 魔搭模型仓库",
+      "kind": "model_repository",
+      "cost": "open_weights_download_compute_separate",
+      "status": "catalogued_token_not_configured",
+      "capabilities": [
+        "datasets",
+        "model_discovery",
+        "model_download",
+        "model_metadata",
+        "snapshot_download",
+        "workflow_references"
+      ],
+      "config_keys": [
+        "MODELSCOPE_TOKEN"
+      ],
+      "notes": "模型/数据集仓库，不提供本项目可直接调度的GPU。公共模型卡可浏览；私有/受限资源可选用MODELSCOPE_TOKEN。下载前核对体积、许可证、依赖与海光DTK兼容性；不自动下载或启动付费服务。"
+    },
+    {
+      "id": "modelscope-studios",
+      "name": "ModelScope 在线 Studio",
+      "kind": "hosted_app",
+      "cost": "quota_and_terms_must_be_verified",
+      "status": "web_access_api_pending",
+      "capabilities": [
+        "hosted_image_generation",
+        "hosted_video_generation",
+        "character_animation",
+        "reference_image_input"
+      ],
+      "config_keys": [
+        "MODELSCOPE_TOKEN"
+      ],
+      "notes": "网页账号可访问不代表有可调用API或免费推理额度；在取得官方接口、额度和费用证据前不作为生产Provider。"
+    },
+    {
+      "id": "kaggle",
+      "name": "Kaggle Notebooks",
+      "kind": "gpu_worker",
+      "cost": "free_quota",
+      "status": "disabled_by_user_request",
+      "capabilities": [],
+      "config_keys": [
+        "MANGA_BOX_URL",
+        "MANGA_WORKER_KEY"
+      ],
+      "notes": "用户已明确要求停止Kaggle生产使用。仅保留历史代码和迁移记录，不允许调度新任务。"
+    },
+    {
+      "id": "colab",
+      "name": "Google Colab",
+      "kind": "gpu_worker",
+      "cost": "free_limited_or_paid",
+      "status": "candidate",
+      "capabilities": [
+        "sd15_image",
+        "comfyui",
+        "tts"
+      ],
+      "config_keys": [
+        "MANGA_BOX_URL",
+        "MANGA_WORKER_KEY"
+      ],
+      "notes": "需要验证免费GPU配额、会话时长和外网回传。"
+    },
+    {
+      "id": "local-comfyui",
+      "name": "本地 ComfyUI",
+      "kind": "image_video_backend",
+      "cost": "local_hardware",
+      "status": "unavailable_no_local_pc",
+      "capabilities": [
+        "sd15_image",
+        "sdxl_image",
+        "controlnet",
+        "ip_adapter",
+        "video_workflows"
+      ],
+      "config_keys": [
+        "COMFYUI_BASE_URL"
+      ],
+      "notes": "接口保留作将来可迁移节点；当前用户没有可作为生产前提的本地电脑，不得把它计入可用算力。"
+    },
+    {
+      "id": "nvidia-nim",
+      "name": "NVIDIA API Catalog / NIM",
+      "kind": "hosted_api",
+      "cost": "check_account_limits",
+      "status": "api_connection_tested",
+      "capabilities": [
+        "llm",
+        "vision_language",
+        "speech_some_models"
+      ],
+      "config_keys": [
+        "NVIDIA_API_KEY",
+        "NVIDIA_BASE_URL",
+        "NVIDIA_MODEL"
+      ],
+      "notes": "用户此前已确认接口连接测试通过。用于支持的文本/VLM等托管API，不等于GPU租赁；调用仍需核对额度与费用。"
+    },
+    {
+      "id": "runpod",
+      "name": "RunPod",
+      "kind": "gpu_cloud",
+      "cost": "paid",
+      "status": "disabled_by_default",
+      "capabilities": [
+        "comfyui",
+        "sdxl_image",
+        "video_models"
+      ],
+      "config_keys": [
+        "RUNPOD_ENDPOINT",
+        "RUNPOD_API_KEY"
+      ],
+      "notes": "仅作未来迁移适配项；默认禁用，未经用户明确同意不得启动付费实例。"
+    },
+    {
+      "id": "generic-openai-compatible",
+      "name": "OpenAI兼容API",
+      "kind": "hosted_api",
+      "cost": "provider_dependent",
+      "status": "deepseek_api_route_available",
+      "capabilities": [
+        "llm"
+      ],
+      "config_keys": [
+        "LLM_BASE_URL",
+        "LLM_API_KEY",
+        "LLM_MODEL"
+      ],
+      "notes": "DeepSeek兼容API走服务端统一路由；用于剧本、对白、分镜和提示词，不提供GPU。"
+    },
+    {
+      "id": "scnet-hygon-dcu",
+      "name": "SCNet Hygon DCU（预付费资源）",
+      "kind": "gpu_worker",
+      "cost": "prepaid_allocation_only",
+      "status": "preflight_pending_no_job_submitted",
+      "capabilities": [
+        "dcu_runtime_check",
+        "image_generation_candidate",
+        "video_generation_candidate"
+      ],
+      "config_keys": [
+        "MANGA_BOX_URL",
+        "MANGA_WORKER_KEY"
+      ],
+      "notes": "SCNet华中一区BW系列64GB卡资源。已准备单卡10分钟预检脚本与只读额度检查；尚未确认账号实际分区/额度，也未提交作业。仅使用已分配资源，禁止自动购买/按量付费。"
+    },
+    {
+      "id": "modelscope-notebook-cpu",
+      "name": "ModelScope Notebook CPU",
+      "kind": "cpu_worker",
+      "cost": "free_session_limited",
+      "status": "instance_creation_unverified",
+      "capabilities": [
+        "text_preprocessing",
+        "metadata_batch",
+        "subtitle_preparation",
+        "lightweight_cpu_jobs"
+      ],
+      "config_keys": [],
+      "notes": "CPU环境可承担轻量预处理；Notebook不是24/7常驻Worker。当前账号页面曾显示实例为空且创建按钮禁用，恢复创建能力前不可调度。"
+    },
+    {
+      "id": "modelscope-notebook-gpu",
+      "name": "ModelScope Notebook GPU",
+      "kind": "gpu_worker",
+      "cost": "quota_limited",
+      "status": "no_live_instance_verified",
+      "capabilities": [
+        "image_generation_experiment",
+        "model_compatibility_test"
+      ],
+      "config_keys": [
+        "MANGA_BOX_URL",
+        "MANGA_WORKER_KEY"
+      ],
+      "notes": "仅在实例真实创建、卡型/额度核实后作为实验Worker；免费额度耗尽或实例回收时任务暂停，不转付费。"
+    },
+    {
+      "id": "instabox-worker",
+      "name": "Instabox CPU Worker",
+      "kind": "cpu_worker",
+      "cost": "usage_and_free_sandbox_quota",
+      "status": "adapter_available_machine_status_pending",
+      "capabilities": [
+        "ffmpeg",
+        "audio_mix",
+        "subtitle_render",
+        "media_validation",
+        "archive_export"
+      ],
+      "config_keys": [
+        "INSTABOX_API_KEY"
+      ],
+      "notes": "已有服务端API adapter；先查询machines与usage，确认现有机器和剩余额度后才调度。不得自动创建、恢复或续费可能收费的机器。"
+    },
+    {
+      "id": "minimax-video",
+      "name": "MiniMax-H3 视频生成",
+      "kind": "hosted_video_api",
+      "cost": "per_task_check_account_quota",
+      "status": "async_video_task_verified",
+      "capabilities": [
+        "text_to_video",
+        "image_to_video",
+        "short_shot_generation"
+      ],
+      "config_keys": [
+        "MINIMAX_API_KEY"
+      ],
+      "notes": "已有真实任务提交/查询链路；第一镜已下载，第二镜仅确认远端任务成功，需单独确认下载。每镜头记账，禁止未授权批量生成。"
+    },
+    {
+      "id": "deepseek-api",
+      "name": "DeepSeek 文本 API",
+      "kind": "hosted_llm_api",
+      "cost": "account_quota_must_be_checked",
+      "status": "connection_tested_route_available",
+      "capabilities": [
+        "story_generation",
+        "dialogue",
+        "storyboard_text",
+        "prompt_optimization"
+      ],
+      "config_keys": [
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_BASE_URL",
+        "DEEPSEEK_MODEL"
+      ],
+      "notes": "用于文本工作流，不提供GPU。连接测试成功不代表剩余额度已实时同步。"
+    }
+  ]
+}
+[exit status 0]
