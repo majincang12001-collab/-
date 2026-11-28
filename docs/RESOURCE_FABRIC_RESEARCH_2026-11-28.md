@@ -13,10 +13,11 @@
 | NVIDIA API Catalog/NIM | 文本/VLM/支持的语音模型 | 不等于租用 NVIDIA GPU；不能直接跑本地 ComfyUI | Key 已有保存路径；保持服务端调用与费用闸门 |
 | MiniMax 视频 API | 生成短视频镜头、图生视频/参考驱动能力（以当前模型接口为准） | 不负责全片剪辑、角色数据库或任务编排 | 已有真实异步任务链路；第一镜已下载，第二镜只确认远端 succeeded，需单独核实下载 |
 | ModelScope 模型仓库 | 模型/数据集发现、版本、下载 | 仓库不是推理算力 | 有独立 adapter；下载默认关闭，需核验许可/体积/运行时 |
-| ModelScope Notebook CPU | 文本预处理、批量元数据、字幕/提示词整理、轻量 CPU 任务 | 不适合常驻 Worker；Notebook 生命周期会回收 | 账号页面曾显示实例空、创建按钮禁用；未证明可用，需先解决创建权限/资源问题 |
-| ModelScope Notebook GPU | 小规模图像/视频实验、模型兼容性试验 | 免费额度不等于稳定生产 SLA | 只在明确额度和可用实例确认后启用 |
+| ModelScope Notebook CPU | 文本预处理、批量元数据、字幕/提示词整理、轻量 CPU 任务 | 不适合常驻 Worker；实例仍受平台生命周期管理 | 账号页显示 8C/32GB、No expiry；启动时 Bad Gateway，刷新后无匹配实例，当前未启动 |
+| ModelScope 24GB GPU Notebook | 小规模图像/视频实验、模型兼容性试验 | 免费额度不等于稳定生产 SLA | 账号页曾显示剩余 34h47m；未启动，等待服务恢复 |
+| ModelScope × AMD 192GB GPU Notebook | 大显存图像模型、开源视频模型实验、大模型推理 | ROCm/torch/模型算子仍需验机；100小时是有限额度，不是常驻服务 | 账号页曾显示 23C/200GB/192GB AMD GPU、剩余 100h；启动返回 Bad Gateway，刷新后无实例，尚未消耗 |
 | SCNet 华中一区 BW DCU | 大规模图像生成实验、模型推理；兼容后可试视频模型 | 不可直接运行 CUDA 专用依赖；不能仅凭 hy-smi 识别就判定可用 | 已有 Slurm 单卡预检脚本和心跳 API；尚未提交作业、尚未实测出图 |
-| Instabox CPU Worker | FFmpeg、字幕、音频拼接、素材校验、打包等 CPU 工序 | 不应默认启动/续费付费机器 | 有 API adapter；先读取 usage/machines，只有已存在可用实例才分派任务 |
+| Instabox CPU Worker | FFmpeg、字幕、音频拼接、素材校验、打包等 CPU 工序 | 不应创建额外机器或升级付费；免费机空闲会自动暂停 | 已有 4 vCPU/8GiB/20GiB 的 `ai` 机器处于暂停；Free Plan 显示一个免费沙箱且不计费。API能读状态/用量，启动权限与Worker执行尚未打通 |
 | Colab（备用） | 临时验证小模型/工作流 | 免费 GPU 稳定性和在线时间 | 保留备用，不作为主生产调度器 |
 | Kaggle | 不纳入当前生产主链路 | 不再自动派发新生产任务 | 旧 Worker 代码仅为迁移/历史兼容，状态应标记为停用 |
 | 本地 ComfyUI | 有用户自有 GPU 时的可选节点 | 当前用户不以本地电脑作为生产前提 | 适配接口保留，不作为当前资源假设 |
@@ -93,10 +94,10 @@
 
 ## 当前阻塞与安全边界
 
-- 当前本地工作副本有 SCNet 预检和 ModelScope adapter，但生产服务器目录中未发现 `scnet/`、`modelscope_adapter.py` 或 `deployment/providers.json`；本地文件存在不代表已部署。
+- 已将 `modelscope_adapter.py`、15项资源能力目录和 SCNet 预检脚本部署到生产服务器；API 已实测返回15项资源，ModelScope状态接口返回未配置/未启动（不泄露Token）。这些只是资源目录与只读适配，不代表GPU Worker已跑通。
 - SCNet Slurm 预检模板不再硬编码未经核实的分区名；新增只读 `scnet/inspect_allocation.sh`，用于在登录节点查询 `whichpartition`、`sinfo`、`sacctmgr` 和存储。必须先确认账号实际 DCU 队列与额度，再用 `sbatch --partition=<verified>` 提交。
-- SCNet 官方说明登录节点可联网、计算节点通常不能联网；Python wheel 和模型文件应先在登录节点/批准存储准备。未获得/验证 SCNet 作业入口和密钥前，不应假装已经启动算力。
-- ModelScope Notebook 当前没有可用实例；CPU 不是 24/7 常驻 Worker。
+- SCNet 官方说明登录节点可联网、计算节点通常不能联网；Python wheel 和模型文件应先在登录节点/批准存储准备。账号Notebook页显示单机可用卡数0/8，当前作业与历史作业为空；未提交Slurm作业。
+- ModelScope Notebook：CPU页显示8C/32GB且“No expiry”，官方资料没有“每日4小时”限制；24GB GPU页显示34h47m、AMD 192GB GPU页显示100h。尝试启动CPU与AMD实例时页面返回Bad Gateway，刷新后无匹配实例，因此没有实例启动、没有消耗这两档GPU额度。
 - 用户已要求停止 Kaggle 生产使用。历史 Kaggle 代码不能继续作为默认路由。
 - 不自动启动 RunPod/其他按量计费 GPU，不自动购买/下载大型模型，不在 GitHub、前端或 Notebook 输出中写 API Key。
 
@@ -111,4 +112,5 @@
 - OpenMontage: https://github.com/edisplay/openmontage
 - SCNet 华中一区 BW 节点资源说明: https://www.scnet.cn/help/docs/mainsite/bw-core-node/system-introduction/index.html
 - ModelScope Notebook: https://www.modelscope.cn/docs/notebook/intro
+- AMD × ModelScope Developer Program 2.0: https://www.modelscope.cn/posts/437059
 [exit status 0]
