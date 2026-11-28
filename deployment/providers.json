@@ -160,15 +160,16 @@
       "cost": "prepaid_allocation_only",
       "status": "resource_visible_0_of_8_notebook_capacity",
       "capabilities": [
-        "dcu_runtime_check",
-        "image_generation_candidate",
-        "video_generation_candidate"
+        "qwen_image_2_1_candidate",
+        "qwen3_vl_candidate",
+        "qwen3_tts_candidate",
+        "dcu_runtime_check"
       ],
       "config_keys": [
         "MANGA_BOX_URL",
         "MANGA_WORKER_KEY"
       ],
-      "notes": "SCNet华中一区BW-1资源规格可见：8卡、每卡64GB、DTK 26.04；Notebook创建页显示单机可用卡数0/8并提示资源不足。当前作业/历史作业列表均为空。Slurm仍需只读核验账号分区与TRES额度。"
+      "notes": "HYGON-AI inference-cookbook-das公开列出BW1000 64GB运行Qwen-Image 2.1（SGLang Diffusion）、Qwen3-VL（vLLM）、Qwen3-TTS（vLLM-Omni）。SCNet账号页面显示8x64GB但实际型号尚未核实；Notebook显示0/8可用。必须先whichpartition+sacctmgr核验Slurm额度和设备型号。"
     },
     {
       "id": "modelscope-notebook-cpu",
@@ -217,7 +218,7 @@
       "config_keys": [
         "INSTABOX_API_KEY"
       ],
-      "notes": "Instabox Free Plan页面显示一个4vCPU/8GiB/20GiB机器ai处于Paused；Usage页面显示One free sandbox, never billed。服务端API可读取机器/用量，但尚未确认可控启动权限和CPU Worker执行链路；不创建新机器、不升级付费。"
+      "notes": "现有4vCPU/8GiB/20GiB免费机器处于Paused。官方Free计划空闲约30分钟自动暂停，禁止外部ping/忙循环保活或反复resume规避最大运行时长。只做按需FFmpeg/字幕/混音/校验；Usage核验为0再运行。"
     },
     {
       "id": "minimax-video",
@@ -261,12 +262,12 @@
       "cost": "free_100_hour_quota",
       "status": "quota_visible_100h_start_api_unavailable",
       "capabilities": [
-        "large_image_generation_candidate",
-        "video_model_experiment_candidate",
-        "large_llm_inference_candidate"
+        "comfyui_headless_worker_candidate",
+        "wan2_2_5b_i2v_candidate",
+        "large_image_generation_candidate"
       ],
       "config_keys": [],
-      "notes": "账号页面曾显示23核/200GB/192G AMD-GPU，剩余100小时；AMD×ModelScope公开活动确认100小时权益。具体GPU SKU需启动后用rocm-smi核实。启动按钮触发Bad Gateway，刷新后实例列表无匹配项；未确认启动、未消耗额度。优先级最高的免费开源GPU候选，启动成功后先做ROCm/PyTorch验机。"
+      "notes": "ModelScope账号页面曾显示AMD 192GB GPU剩余100小时；社区教程在MI300X上验证ComfyUI HTTP API+Wan2.2 5B I2V。启动仍返回Bad Gateway、实例列表无匹配，未启动/未消耗。启动后保护镜像预装ROCm PyTorch，先验机再跑单镜头。"
     }
   ]
 }
