@@ -9,12 +9,26 @@ Current target experiment: SD 1.5-compatible anime checkpoint + IP-Adapter SD15.
 `notebook57e8a33be4.ipynb` is an exported source snapshot from Kaggle. Execution outputs, counters, and transient cell metadata were stripped before backup. It preserves the cell source history, including earlier ComfyUI experiments and the later Diffusers/Tiny-SD tests. Some old cells are marked as raw or contain malformed draft fragments; treat this as an audit/archive snapshot, not a clean run-all notebook. The exported Kaggle metadata reported GPU disabled, so GPU availability must be re-verified in the live session before new experiments.
 
 
-## 当前已验证的视频后期 MVP
-- Box 控制端安装了 FFmpeg 6.1.1、eSpeak NG 1.51、Pillow 和 Noto CJK 字体。
-- `render_episode.py` 从项目已保存的分镜读取内容，优先匹配项目文件名中的 `shot_0001.png` 等镜头关键帧；缺少原画时生成明确标注的文字占位卡。
-- 对画面做轻微 Ken Burns 推近，使用普通话 eSpeak NG 合成旁白，生成 SRT 字幕，最后输出 MP4。
-- 工作台的“生成动态分镜预览 MP4”按钮会后台启动任务并在完成后下载视频。
-- 这是动态分镜/animatic，不等于 AnimateDiff、SVD 等模型生成的真实人物动作视频。语音目前为离线合成测试音色。
+## 当前视频后期边界（2026-11-24）
+- `render_episode.py` 只对已存在的真实关键帧做动态剪辑；缺少关键帧会停止任务，不再用文字卡冒充画面。
+- 不再调用 eSpeak NG 作为正式旁白；没有真实普通话 TTS 音频时，不伪造机械配音。
+- Ken Burns 动效只是静态关键帧剪辑，不等于 AI 图生视频。真实动作视频仍需单独接入视频生成模型。
+
+## Qwen3-TTS 普通话免费 GPU Worker
+
+优先模型：`Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`（Apache-2.0）。支持中文音色 Serena、Vivian、Uncle_Fu、Dylan、Eric，可通过自然语言指令调整语气。模型约 2.5GB，另需 Tokenizer 和运行依赖；仅在 Kaggle 免费 GPU Session 中下载，不安装到 Box 控制端。
+
+### Kaggle 启动
+1. 在 Kaggle Notebook 选择免费 GPU（T4 即可），确认 `torch.cuda.is_available()`。
+2. 将项目中的 `kaggle/tts_worker.py` 放入 `/kaggle/working/`。
+3. 在 Kaggle Secrets 中配置 `MANGA_SERVER_URL`（当前漫剧控制台公网地址）和 `MANGA_WORKER_KEY`（工作进程密钥）；不要把密钥写入 Notebook 输出或代码仓库。
+4. 执行 `pip install -U qwen-tts soundfile`。
+5. 执行 `python /kaggle/working/tts_worker.py`。首次启动会加载/下载 0.6B 模型，成功后持续轮询控制台语音队列。
+6. 回到控制台「制作流程 → 中文语音」，选择音色、输入试听文本，提交试听；Worker 完成后会返回 WAV，页面出现音频播放器。
+
+Worker 使用独立的 `/api/tts/*` 队列，不调用付费 API。若 Kaggle Session 关闭，试听任务会停留在队列中，重新启动 Worker 后继续处理。
+
+**验证边界：** 目前已完成 TTS 队列、Worker 领取、WAV 上传、状态查询和音频回放的 API 集成测试；尚未在真实 Kaggle T4 Session 下载 Qwen3-TTS 权重并验收听感。控制台不会把排队状态冒充为已生成音频。
 
 ## 模型缓存持久化（私有 Kaggle Dataset 已上传并验证挂载）
 

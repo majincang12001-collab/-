@@ -61,3 +61,38 @@
 - 新增 `build_prompt()`：按景别、场景、镜头提示、动作、风格、人物信息顺序逐段填充；超长片段按 tokenizer 预算截短，不再整段丢弃；目标上限75 tokens。
 - 新增3项单元测试，覆盖超长场景截断、优先级顺序、空片段；全项目6项测试通过。
 - 当前只在 Box 本地完成代码和单元测试，Kaggle GPU 实测尚未执行。下一次 GPU 会话需要先做单镜头 A/B 对照，不能提前认定背景场景遵循度已提升。
+
+## 2026-11-24：全新 Kaggle Session 恢复验收通过
+
+- 主动停止原 Draft Session，再启动全新 Session；新 Session 的运行计时从 0m 重新开始。
+- 两个 Kaggle 私有数据集在新 Session 中自动挂载：模型包位于 `/kaggle/input/datasets/jincangma/ai-manga-model-bundle`，关键帧数据位于 `/kaggle/input/datasets/jincangma/ai-manga-keyframes-20261124`。
+- 新 Session 检查到模型清单中的 18 个模型文件，逐一重新计算 SHA256，18/18 匹配，0 失败。
+- 新 Session GPU 为 Tesla T4（约 15GiB 显存）。AnythingV5 从只读 Dataset 挂载路径加载成功，IP-Adapter 从本地暂存目录加载成功。
+- 真实完成一次 512×512、4 步 GPU 条件生成，输出 `/kaggle/working/fresh_session_smoke.png`，大小约 495KB；日志标记 `FRESH_SESSION_MODEL_AND_GPU_INFERENCE_OK`。
+- IP-Adapter 原始挂载路径的 image encoder 权重读取很慢（FUSE 进度长时间不前进）；将 2.57GB 的 IP-Adapter 目录顺序复制到 `/kaggle/working/manga_model_bundle/IP-Adapter` 后，模型加载与推理顺利完成。正式 worker 应沿用此暂存策略。
+
+### 结论
+
+模型私有数据集的跨 Session 恢复、SHA256 完整性、底模/IP-Adapter 加载及真实 GPU 推理全部通过。尚未在新 Session 完成的是正式两镜头 worker 的完整执行及新输出回传；本次 4 步测试只证明恢复与推理链路，不作为画质或人物一致性验收。
+
+## 2026-11-24：新 Session 同参考图双镜头试验
+
+- 从项目私有资料中取出同一张黑发女主脸部参考裁剪，压缩后导入新 Kaggle Session；未使用公开分享链接。
+- 在新 Session 已加载的 AnythingV5 + IP-Adapter 上，固定同一参考图、同一 IP-Adapter scale 0.65，分别生成古城门远景和红灯笼街中景；两张 768×432 PNG 均成功落盘，文件大小约 604KB / 592KB。
+- 该轮为 12 steps 的快速对照，不是最终画质设置。缩略图预览可见人物风格存在蓝紫色偏移，尚不能判定脸部身份与服装跨镜头锁定通过；需要放大检查，并进一步优化参考图/姿势控制。
+- 生成目录：`/kaggle/working/fresh_character_consistency/`。当前新 Session 尚未结束，输出暂存于工作盘，尚未回传到私有结果 Dataset。
+
+## 2026-11-24：低权重身份条件与 MimicMotion 环境恢复
+
+### IP-Adapter A/B
+- 同一张女主脸部参考图，在 scale 0.30 下重新生成古城门远景和红灯笼街中景，768×432、20 steps。
+- 场景的暖色灯笼、灰色石板路和木质街景表现较上一轮更贴近提示词；但中景缩略预览仍有疑似重复人物，人物身份/单人构图尚未验收。额外尝试 scale 0.25 + 单人/空街约束，生成一张 24 steps 中景图，仍需放大检查。
+- 输出暂存 `/kaggle/working/fresh_character_consistency/`，尚未上传私有结果 Dataset。
+
+### MimicMotion 环境
+- 新 Session 通过 GitHub 克隆官方 Tencent/MimicMotion 仓库。
+- 官方 checkpoint `MimicMotion_1-1.pth` 已从 Hugging Face 下载完成，大小 3,049,867,447 bytes（约 2.84 GiB）。
+- 安装 `omegaconf`、`decord`、`einops`、`imageio-ffmpeg`、`onnxruntime` 成功。
+- 修补当前 Kaggle torchvision 缺少 `torchvision.io.write_video` 的兼容问题：改为 OpenCV 写 MP4。
+- `inference.py --help` 已成功运行，说明官方推理入口及参数解析已通过。
+- 尚未完成 MimicMotion 实际推理：配置默认依赖 Stable Video Diffusion XT 1.1 基础模型，以及 DWPose 相关模型/样例素材。当前尚未下载并挂载这些大权重，也尚未运行16帧生成。

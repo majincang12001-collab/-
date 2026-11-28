@@ -5,16 +5,24 @@ This is an experimental 512x512 identity-consistency test, not a 1080p video pip
 """
 from pathlib import Path
 import glob
+import os
 import time
 import torch
 from PIL import Image, ImageDraw
 from diffusers import StableDiffusionPipeline
 
-HF_HOME = Path('/kaggle/working/hf_cache')
-BASE_REPO = HF_HOME / 'models--Yntec--AnythingV5' / 'snapshots'
-ADAPTER_REPO = HF_HOME / 'models--h94--IP-Adapter' / 'snapshots'
-base = Path(sorted(glob.glob(str(BASE_REPO / '*')))[-1])
-adapter = Path(sorted(glob.glob(str(ADAPTER_REPO / '*')))[-1])
+BUNDLE = Path(os.environ.get('MANGA_MODEL_BUNDLE', '/kaggle/working/manga_model_bundle'))
+if not (BUNDLE / 'AnythingV5' / 'model_index.json').is_file():
+    BUNDLE = Path('/kaggle/input/datasets/jincangma/ai-manga-model-bundle')
+if (BUNDLE / 'AnythingV5' / 'model_index.json').is_file():
+    base = BUNDLE / 'AnythingV5'
+    adapter = BUNDLE / 'IP-Adapter'
+else:
+    HF_HOME = Path('/kaggle/working/hf_cache')
+    BASE_REPO = HF_HOME / 'models--Yntec--AnythingV5' / 'snapshots'
+    ADAPTER_REPO = HF_HOME / 'models--h94--IP-Adapter' / 'snapshots'
+    base = Path(sorted(glob.glob(str(BASE_REPO / '*')))[-1])
+    adapter = Path(sorted(glob.glob(str(ADAPTER_REPO / '*')))[-1])
 reference_path = Path('/kaggle/working/heroine_reference_seed20261123.png')
 output_dir = Path('/kaggle/working')
 
@@ -33,7 +41,7 @@ pipe = StableDiffusionPipeline.from_pretrained(
     local_files_only=True,
 )
 pipe = pipe.to('cuda')
-pipe.enable_vae_slicing()
+pipe.vae.enable_slicing()
 # Keep attention slicing disabled while loading IP-Adapter; it caused a processor
 # constructor mismatch with the tested Diffusers 0.35.2 stack.
 pipe.disable_attention_slicing()
@@ -84,4 +92,3 @@ sheet.save(output_dir / 'ipadapter_consistency_contact_sheet.png')
 print('CONTACT_SHEET_SAVED', output_dir / 'ipadapter_consistency_contact_sheet.png')
 print('TOTAL_SECONDS', round(time.time() - started, 1))
 print('GPU_FREE_GB', [round(torch.cuda.mem_get_info(i)[0] / 1024**3, 2) for i in range(torch.cuda.device_count())])
-[exit status 0]
