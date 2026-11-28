@@ -13,6 +13,7 @@
 | NVIDIA API Catalog/NIM | 文本/VLM/支持的语音模型 | 不等于租用 NVIDIA GPU；不能直接跑本地 ComfyUI | Key 已有保存路径；保持服务端调用与费用闸门 |
 | MiniMax 视频 API | 生成短视频镜头、图生视频/参考驱动能力（以当前模型接口为准） | 不负责全片剪辑、角色数据库或任务编排 | 已有真实异步任务链路；第一镜已下载，第二镜只确认远端 succeeded，需单独核实下载 |
 | ModelScope 模型仓库 | 模型/数据集发现、版本、下载 | 仓库不是推理算力 | 有独立 adapter；下载默认关闭，需核验许可/体积/运行时 |
+| ModelScope API Inference | 免费配额内的LLM/多模态/图像或视频托管推理 | 不是本项目可调度的GPU；每模型限额动态变化 | 官方活动页称每日累计最多2000次免费调用；平台Token尚未配置，暂不调用 |
 | ModelScope Notebook CPU | 文本预处理、批量元数据、字幕/提示词整理、轻量 CPU 任务 | 不适合常驻 Worker；实例仍受平台生命周期管理 | 账号页显示 8C/32GB、No expiry；启动时 Bad Gateway，刷新后无匹配实例，当前未启动 |
 | ModelScope 24GB GPU Notebook | 小规模图像/视频实验、模型兼容性试验 | 免费额度不等于稳定生产 SLA | 账号页曾显示剩余 34h47m；未启动，等待服务恢复 |
 | ModelScope × AMD 192GB GPU Notebook | 大显存图像模型、开源视频模型实验、大模型推理 | ROCm/torch/模型算子仍需验机；100小时是有限额度，不是常驻服务 | 账号页曾显示 23C/200GB/192GB AMD GPU、剩余 100h；启动返回 Bad Gateway，刷新后无实例，尚未消耗 |
@@ -97,7 +98,7 @@
 - 已将 `modelscope_adapter.py`、15项资源能力目录和 SCNet 预检脚本部署到生产服务器；API 已实测返回15项资源，ModelScope状态接口返回未配置/未启动（不泄露Token）。这些只是资源目录与只读适配，不代表GPU Worker已跑通。
 - SCNet Slurm 预检模板不再硬编码未经核实的分区名；新增只读 `scnet/inspect_allocation.sh`，用于在登录节点查询 `whichpartition`、`sinfo`、`sacctmgr` 和存储。必须先确认账号实际 DCU 队列与额度，再用 `sbatch --partition=<verified>` 提交。
 - SCNet 官方说明登录节点可联网、计算节点通常不能联网；Python wheel 和模型文件应先在登录节点/批准存储准备。账号Notebook页显示单机可用卡数0/8，当前作业与历史作业为空；未提交Slurm作业。
-- ModelScope Notebook：CPU页显示8C/32GB且“No expiry”，官方资料没有“每日4小时”限制；24GB GPU页显示34h47m、AMD 192GB GPU页显示100h。尝试启动CPU与AMD实例时页面返回Bad Gateway，刷新后无匹配实例，因此没有实例启动、没有消耗这两档GPU额度。
+- ModelScope Notebook：CPU页显示8C/32GB且“No expiry”，官方资料没有“每日4小时”限制；24GB GPU页显示34h47m、AMD 192GB GPU页显示100h。ModelScope API Inference另有公开的每日累计免费调用额度（最多2000次，模型级配额动态变化），但本平台尚未配置Token。尝试启动CPU与AMD实例时页面返回Bad Gateway，刷新后无匹配实例，因此没有实例启动、没有消耗这两档GPU额度。
 - 用户已要求停止 Kaggle 生产使用。历史 Kaggle 代码不能继续作为默认路由。
 - 不自动启动 RunPod/其他按量计费 GPU，不自动购买/下载大型模型，不在 GitHub、前端或 Notebook 输出中写 API Key。
 
@@ -113,4 +114,5 @@
 - SCNet 华中一区 BW 节点资源说明: https://www.scnet.cn/help/docs/mainsite/bw-core-node/system-introduction/index.html
 - ModelScope Notebook: https://www.modelscope.cn/docs/notebook/intro
 - AMD × ModelScope Developer Program 2.0: https://www.modelscope.cn/posts/437059
+- ModelScope free resources and API Inference quota: https://modelscope.cn/posts/1409
 [exit status 0]
