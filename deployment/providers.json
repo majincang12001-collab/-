@@ -238,8 +238,8 @@
       "notes": "用于文本工作流，不提供GPU。连接测试成功不代表剩余额度已实时同步。"
     },
     {
-      "id": "modelscope-amd-mi300x",
-      "name": "ModelScope × AMD 192GB GPU Notebook",
+      "id": "modelscope-amd-192g",
+      "name": "ModelScope AMD 192GB GPU Notebook",
       "kind": "gpu_worker",
       "cost": "free_100_hour_quota",
       "status": "quota_visible_100h_start_api_unavailable",
@@ -249,7 +249,7 @@
         "large_llm_inference_candidate"
       ],
       "config_keys": [],
-      "notes": "账号页面曾显示23核/200GB/192G AMD-GPU，剩余100小时；AMD×ModelScope公开活动确认100小时权益。启动按钮触发Bad Gateway，刷新后实例列表无匹配项；未确认启动、未消耗额度。优先级最高的免费开源GPU候选，启动成功后先做ROCm/PyTorch验机。"
+      "notes": "账号页面曾显示23核/200GB/192G AMD-GPU，剩余100小时；AMD×ModelScope公开活动确认100小时权益。具体GPU SKU需启动后用rocm-smi核实。启动按钮触发Bad Gateway，刷新后实例列表无匹配项；未确认启动、未消耗额度。优先级最高的免费开源GPU候选，启动成功后先做ROCm/PyTorch验机。"
     }
   ]
 }
