@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name=manga-dcu-preflight
-#SBATCH --partition=hx1hdtest
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
@@ -10,5 +9,6 @@
 #SBATCH --error=manga-dcu-preflight-%j.err
 
 set -euo pipefail
-cd "${SLURM_SUBMIT_DIR:-$HOME}"
-python3 /path/to/dcu_preflight.py
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SLURM_SUBMIT_DIR:-$SCRIPT_DIR}"
+python3 "$SCRIPT_DIR/dcu_preflight.py"
