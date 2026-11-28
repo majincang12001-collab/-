@@ -21,6 +21,23 @@
       "notes": "模型/数据集仓库，不提供本项目可直接调度的GPU。公共模型卡可浏览；私有/受限资源可选用MODELSCOPE_TOKEN。下载前核对体积、许可证、依赖与海光DTK兼容性；不自动下载或启动付费服务。"
     },
     {
+      "id": "modelscope-api-inference",
+      "name": "ModelScope API Inference",
+      "kind": "hosted_api",
+      "cost": "free_daily_quota_dynamic_per_model",
+      "status": "free_quota_documented_token_not_configured",
+      "capabilities": [
+        "llm",
+        "multimodal_inference",
+        "text_to_image_api_candidate",
+        "text_to_video_api_candidate"
+      ],
+      "config_keys": [
+        "MODELSCOPE_TOKEN"
+      ],
+      "notes": "ModelScope公开活动页称API Inference每日累计最多2000次免费调用，模型级配额动态调整；具体模型与并发以Usage/Quota为准。当前平台ModelScope Token未配置，未发起调用。此API是托管推理额度，不等于可调度GPU。"
+    },
+    {
       "id": "modelscope-studios",
       "name": "ModelScope 在线 Studio",
       "kind": "hosted_app",
